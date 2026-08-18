@@ -6,3 +6,204 @@ datasource db {
   provider = "mysql"
   url      = env("DATABASE_URL")
 }
+
+enum Provider {
+  LOCAL
+  KAKAO
+}
+
+enum Gender {
+  MALE
+  FEMALE
+}
+
+enum MyBookStatus {
+  WANT_TO_READ // 읽고 싶은 책
+  CURRENTLY_READING // 읽는 중
+  READ // 읽음
+}
+
+enum ReadingMood {
+  INSPIRED // 영감을 받음
+  EXCITED // 흥미로움, 설렘
+  INTRIGUED // 호기심이 생김
+  SATISFIED // 만족스러움
+  NEUTRAL // 중립적
+  CONFUSED // 혼란스러움
+  DISAPPOINTED // 실망스러움
+  BORED // 지루함
+  EMOTIONAL // 감정적으로 움직임
+  THOUGHTFUL // 생각에 잠김
+  CHALLENGED // 도전적인 느낌
+  ENLIGHTENED // 깨달음을 얻음
+}
+
+enum ReadingGoalMetric {
+  BOOK_COUNT
+  PAGE_COUNT
+  MINUTES
+}
+
+model Book {
+  id          Int       @id @default(autoincrement())
+  title       String
+  subTitle    String?
+  isbn        String    @unique @db.VarChar(13)
+  authors     Json?
+  translators Json?
+  publisher   String?
+  thumbnail   String?
+  coverImage  String?
+  description String?   @db.Text
+  url         String?   @db.Text
+  pubDate     DateTime? @db.Date
+  totalPage   Int?      @default(0)
+  stockStatus String?
+  myBook      MyBook[]
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+}
+
+model User {
+  id            Int             @id @default(autoincrement())
+  email         String?         @unique
+  password      String?
+  name          String?
+  birthday      DateTime?       @db.Date
+  gender        Gender?
+  provider      Provider        @default(LOCAL)
+  profile       String?
+  myBook        MyBook[]
+  reviewLike    ReviewLike[]
+  reviewComment ReviewComment[]
+  readingGoal   ReadingGoal[]
+  createdAt     DateTime        @default(now())
+  updatedAt     DateTime        @updatedAt
+}
+
+model MyBook {
+  id          Int          @id @default(autoincrement())
+  userId      Int
+  bookId      Int
+  rating      Int          @default(0)
+  status      MyBookStatus @default(WANT_TO_READ)
+  currentPage Int          @default(0)
+  readCount   Int          @default(0)
+  startedAt   DateTime? // 처음 CURRENTLY_READING으로 전환된 시각
+  finishedAt  DateTime? // 가장 최근 READ로 전환된 시각
+  lastReadAt  DateTime? // 가장 최근 ReadingLog 기록 시각
+
+  readingLog ReadingLog[]
+  review     MyBookReview?
+  tag        MyBookTag[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  book Book @relation(fields: [bookId], references: [id])
+
+  @@unique([userId, bookId])
+  @@index([userId, status])
+}
+
+model MyBookReview {
+  id            Int             @id @default(autoincrement())
+  myBookId      Int             @unique
+  review        String          @db.VarChar(150) // "한줄평" - 최소 1자, 최대 150자 (앱 레벨에서 검증)
+  isPublic      Boolean
+  reviewLike    ReviewLike[]
+  reviewComment ReviewComment[]
+  createdAt     DateTime        @default(now())
+  updatedAt     DateTime        @updatedAt
+  myBook        MyBook          @relation(fields: [myBookId], references: [id], onDelete: Cascade)
+}
+
+// userId는 Cascade를 걸지 않음: MyBook(userId, Cascade) -> MyBookReview -> ReviewLike 경로가
+// 이미 존재해서 두 경로 모두 Cascade면 MySQL이 "multiple cascade paths" 에러로 FK 생성을 거부함.
+model ReviewLike {
+  id             Int          @id @default(autoincrement())
+  userId         Int
+  myBookReviewId Int
+  createdAt      DateTime     @default(now())
+  user           User         @relation(fields: [userId], references: [id])
+  myBookReview   MyBookReview @relation(fields: [myBookReviewId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, myBookReviewId])
+}
+
+// userId에 Cascade를 걸지 않는 이유는 ReviewLike와 동일 (multiple cascade paths 회피)
+model ReviewComment {
+  id             Int          @id @default(autoincrement())
+  comment        String       @db.VarChar(1000)
+  myBookReviewId Int
+  userId         Int
+  createdAt      DateTime     @default(now())
+  updatedAt      DateTime     @updatedAt
+  user           User         @relation(fields: [userId], references: [id])
+  myBookReview   MyBookReview @relation(fields: [myBookReviewId], references: [id], onDelete: Cascade)
+}
+
+model Tag {
+  id        Int         @id @default(autoincrement())
+  value     String      @unique
+  myBookTag MyBookTag[]
+}
+
+model MyBookTag {
+  id       Int    @id @default(autoincrement())
+  myBookId Int
+  tagId    Int
+  myBook   MyBook @relation(fields: [myBookId], references: [id], onDelete: Cascade)
+  tag      Tag    @relation(fields: [tagId], references: [id], onDelete: Cascade)
+
+  @@unique([myBookId, tagId])
+}
+
+// 독서 세션 기록. 이름을 MyBookHistory -> ReadingLog로 변경함
+// ("History"는 감사로그처럼 읽히는데, 실제로는 습관 트래킹의 핵심 데이터라서)
+model ReadingLog {
+  id             Int          @id @default(autoincrement())
+  myBookId       Int
+  startPage      Int
+  endPage        Int
+  startTime      DateTime
+  endTime        DateTime
+  readingMinutes Int
+  date           DateTime     @db.Date
+  memo           String?      @db.VarChar(500)
+  readingMood    ReadingMood? // 필수였던 걸 nullable로 변경 (매 세션 강제 입력은 입력 마찰이 큼)
+  quote          Quote[]
+  createdAt      DateTime     @default(now())
+  updatedAt      DateTime     @updatedAt
+  myBook         MyBook       @relation(fields: [myBookId], references: [id], onDelete: Cascade)
+
+  @@index([myBookId, date])
+}
+
+// 독서 중 저장한 인용구/하이라이트. 세션(ReadingLog)당 여러 개 가능
+model Quote {
+  id           Int        @id @default(autoincrement())
+  readingLogId Int
+  page         Int
+  content      String     @db.Text
+  createdAt    DateTime   @default(now())
+  readingLog   ReadingLog @relation(fields: [readingLogId], references: [id], onDelete: Cascade)
+
+  @@index([readingLogId])
+}
+
+// 기간별 독서 목표 (연간: month=null / 월간: month 값 있음)
+model ReadingGoal {
+  id          Int               @id @default(autoincrement())
+  userId      Int
+  year        Int
+  month       Int?
+  metric      ReadingGoalMetric
+  targetValue Int
+  createdAt   DateTime          @default(now())
+  updatedAt   DateTime          @updatedAt
+  user        User              @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, year, month, metric])
+}
