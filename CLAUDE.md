@@ -4,13 +4,16 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project overview
 
-`book-habit-nest` is a [NestJS](https://docs.nestjs.com) (TypeScript) backend, scaffolded via `@nestjs/cli`. It is currently a fresh scaffold — the base `AppModule` / `AppController` / `AppService` are the only application code, with no domain modules yet.
+`book-habit-nest` is a [NestJS](https://docs.nestjs.com) (TypeScript) backend, scaffolded via `@nestjs/cli`, using [Prisma](https://www.prisma.io) ORM against MySQL. Application code beyond the base `AppModule` / `AppController` / `AppService` and the DB wiring (`PrismaModule`) is still minimal — no domain modules yet.
 
 ## Commands
 
 ```bash
-# install dependencies
+# install dependencies (also runs `prisma generate` via postinstall)
 npm install
+
+# local MySQL (docker-compose maps host port 3306 -> container 3306)
+docker compose up -d mysql
 
 # run
 npm run start          # single run
@@ -34,12 +37,17 @@ npm run test:e2e          # e2e tests via test/jest-e2e.json (rootDir: test, pat
 # run a single test file
 npx jest path/to/file.spec.ts
 npx jest -t "test name pattern"
+
+# prisma
+npm run prisma:generate   # regenerate client after schema.prisma changes
+npm run prisma:migrate    # create + apply a dev migration (prompts for a name)
+npm run prisma:studio     # open Prisma Studio GUI
 ```
 
 ## Architecture
 
 - Standard NestJS module/controller/service pattern. Entry point is [src/main.ts](src/main.ts), which bootstraps `AppModule` on `PORT` env var (default 3000).
 - [src/app.module.ts](src/app.module.ts) is the root module; new feature modules should be registered here (or nested under feature modules as the app grows).
+- **Database**: [prisma/schema.prisma](prisma/schema.prisma) defines the MySQL schema; `DATABASE_URL` (see [.env.example](.env.example)) points at the `docker-compose.yml` MySQL service. [src/prisma/prisma.service.ts](src/prisma/prisma.service.ts) extends `PrismaClient` with Nest lifecycle hooks (`$connect`/`$disconnect`), and [src/prisma/prisma.module.ts](src/prisma/prisma.module.ts) is `@Global()` so any module can inject `PrismaService` without re-importing it. Prisma is pinned to an exact version (`prisma`/`@prisma/client` both `6.12.0`, not `^6.12.0`) because newer 6.13+ releases pull a vulnerable `deepmerge-ts` via `@prisma/config` — bump deliberately, not via a caret range.
 - Unit tests live alongside source as `*.spec.ts` (jest rootDir is `src`). E2E tests live under [test/](test/) as `*.e2e-spec.ts`, run through a separate Jest config ([test/jest-e2e.json](test/jest-e2e.json)) with its own rootDir/moduleNameMapper.
-- Path aliases: `tsconfig.json` has `baseUrl: "./"` — prefer relative imports until a `paths` mapping is added.
 - ESLint config is flat-config style ([eslint.config.mjs](eslint.config.mjs)) using `typescript-eslint` + `eslint-plugin-prettier`; Prettier config is in [.prettierrc](.prettierrc) (single quotes, trailing commas).
