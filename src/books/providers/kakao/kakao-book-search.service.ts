@@ -1,4 +1,4 @@
-import { Injectable } from '@nestjs/common';
+import { BadGatewayException, Injectable, Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { HttpService } from '@nestjs/axios';
 import { catchError, firstValueFrom } from 'rxjs';
@@ -10,6 +10,7 @@ import { KakaoBookItemDto } from './kakao-search-res.dto';
 
 @Injectable()
 export class KakaoBookSearchService {
+  private readonly logger = new Logger(KakaoBookSearchService.name);
   private readonly BASE_URL = 'https://dapi.kakao.com';
 
   constructor(
@@ -44,7 +45,10 @@ export class KakaoBookSearchService {
         })
         .pipe(
           catchError((error: AxiosError) => {
-            throw error;
+            this.logger.error(
+              `카카오 도서 검색 실패: ${JSON.stringify(error.response?.data)}`,
+            );
+            throw new BadGatewayException('카카오 도서 검색에 실패했습니다.');
           }),
         ),
     );
