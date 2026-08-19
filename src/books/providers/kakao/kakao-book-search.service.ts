@@ -7,6 +7,7 @@ import { PaginationUtil } from '../../../common';
 import { ResponseKakaoSearchBook } from './kakao.types';
 import { KakaoSearchReqDto } from './kakao-search-req.dto';
 import { KakaoBookItemDto } from './kakao-search-res.dto';
+import { KakaoSearchResultDto } from './kakao-search-result.dto';
 
 @Injectable()
 export class KakaoBookSearchService {
@@ -18,7 +19,9 @@ export class KakaoBookSearchService {
     private readonly configService: ConfigService,
   ) {}
 
-  public async search(params: KakaoSearchReqDto) {
+  public async search(
+    params: KakaoSearchReqDto,
+  ): Promise<KakaoSearchResultDto> {
     const {
       query,
       sort = 'accuracy',
