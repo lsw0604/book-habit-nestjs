@@ -17,10 +17,12 @@ describe('AppController (e2e)', () => {
   });
 
   it('/ (GET)', () => {
-    return request(app.getHttpServer())
-      .get('/')
-      .expect(200)
-      .expect('Hello World!');
+    return request(app.getHttpServer()).get('/').expect(200).expect({
+      success: true,
+      statusCode: 200,
+      message: '성공적으로 처리되었습니다',
+      data: 'Hello World!',
+    });
   });
 
   afterEach(async () => {
