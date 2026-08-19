@@ -6,12 +6,14 @@ import { PrismaModule } from './prisma/prisma.module';
 import { BooksModule } from './books/books.module';
 import { APP_FILTER, APP_INTERCEPTOR } from '@nestjs/core';
 import { ResponseDtoInterceptor, ResponseExceptionFilter } from './common';
+import { UserModule } from './user/user.module';
 
 @Module({
   imports: [
     ConfigModule.forRoot({ isGlobal: true }),
     PrismaModule,
     BooksModule,
+    UserModule,
   ],
   controllers: [AppController],
   providers: [
