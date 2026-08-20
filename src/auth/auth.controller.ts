@@ -15,8 +15,9 @@ import { ConfigService } from '@nestjs/config';
 import type { CookieOptions, Request, Response } from 'express';
 import { AuthService, AuthTokens } from './auth.service';
 import { CreateUserDto } from '../user/dto/create-user.dto';
-import { LoginDto } from './dto';
-import { ResponseMessage } from '../common';
+import { UserResponseDto } from '../user/dto/user-response.dto';
+import { AuthUserResponseDto, KakaoCallbackDto, LoginDto } from './dto';
+import { ApiResponseDto, ResponseMessage } from '../common';
 import { AccessTokenGuard, OptionalAccessTokenGuard } from './guards';
 import { CurrentUser } from './decorators';
 import type { JwtPayload } from './types';
@@ -37,6 +38,7 @@ export class AuthController {
 
   @Post('signup')
   @ApiOperation({ summary: '회원가입' })
+  @ApiResponseDto(UserResponseDto)
   @ResponseMessage('회원가입이 완료되었습니다.')
   signUp(@Body() createUserDto: CreateUserDto) {
     return this.authService.signUp(createUserDto);
@@ -45,17 +47,44 @@ export class AuthController {
   @Post('login')
   @HttpCode(HttpStatus.OK)
   @ApiOperation({ summary: '로그인' })
+  @ApiResponseDto(AuthUserResponseDto)
   @ResponseMessage('로그인되었습니다.')
   async login(
     @Body() loginDto: LoginDto,
     @Res({ passthrough: true }) res: Response,
   ) {
-    const tokens = await this.authService.login(
+    const response = await this.authService.login(
       loginDto.email,
       loginDto.password,
     );
 
-    this.setAuthCookies(res, tokens);
+    this.setAuthCookies(res, response.token);
+
+    return {
+      user: response.user,
+    };
+  }
+
+  // FE가 카카오 인가 페이지 이동/리다이렉트 수신을 전담하고, 여기서는
+  // FE가 넘겨준 code를 받아 토큰 교환 + 로그인/회원가입만 처리함.
+  @Post('kakao/callback')
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({ summary: '카카오 로그인 (FE가 전달한 code로 토큰 교환)' })
+  @ApiResponseDto(AuthUserResponseDto)
+  @ResponseMessage('카카오 로그인이 완료되었습니다.')
+  async kakaoCallback(
+    @Body() kakaoCallbackDto: KakaoCallbackDto,
+    @Res({ passthrough: true }) res: Response,
+  ) {
+    const response = await this.authService.kakaoCallback(
+      kakaoCallbackDto.code,
+    );
+
+    this.setAuthCookies(res, response.token);
+
+    return {
+      user: response.user,
+    };
   }
 
   @Post('refresh')
@@ -88,10 +117,17 @@ export class AuthController {
   // 그대로 재사용하면 됨.
   @Get('me')
   @UseGuards(OptionalAccessTokenGuard)
-  @ApiOperation({ summary: '로그인 상태 확인 (비로그인이어도 401 없이 통과)' })
+  @ApiOperation({
+    summary: '로그인 상태 확인 (비로그인이어도 401 없이 통과)',
+    description: '비로그인 상태에서는 data가 없는 채로 200을 반환함.',
+  })
+  @ApiResponseDto(AuthUserResponseDto)
   @ResponseMessage('로그인 상태를 조회했습니다.')
-  me(@CurrentUser() user?: JwtPayload) {
-    return { isAuthenticated: Boolean(user), user: user ?? null };
+  async me(@CurrentUser() user?: JwtPayload) {
+    if (!user?.email) return;
+    return {
+      user: await this.authService.me(user.email),
+    };
   }
 
   @Post('logout')
