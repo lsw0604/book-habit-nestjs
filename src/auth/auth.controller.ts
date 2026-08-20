@@ -15,7 +15,6 @@ import { ConfigService } from '@nestjs/config';
 import type { CookieOptions, Request, Response } from 'express';
 import { AuthService, AuthTokens } from './auth.service';
 import { CreateUserDto } from '../user/dto/create-user.dto';
-import { UserResponseDto } from '../user/dto/user-response.dto';
 import { AuthUserResponseDto, KakaoCallbackDto, LoginDto } from './dto';
 import { ApiResponseDto, ResponseMessage } from '../common';
 import { AccessTokenGuard, OptionalAccessTokenGuard } from './guards';
@@ -38,10 +37,19 @@ export class AuthController {
 
   @Post('signup')
   @ApiOperation({ summary: '회원가입' })
-  @ApiResponseDto(UserResponseDto)
+  @ApiResponseDto(AuthUserResponseDto)
   @ResponseMessage('회원가입이 완료되었습니다.')
-  signUp(@Body() createUserDto: CreateUserDto) {
-    return this.authService.signUp(createUserDto);
+  async signUp(
+    @Body() createUserDto: CreateUserDto,
+    @Res({ passthrough: true }) res: Response,
+  ) {
+    const response = await this.authService.signUp(createUserDto);
+
+    this.setAuthCookies(res, response.token);
+
+    return {
+      user: response.user,
+    };
   }
 
   @Post('login')
