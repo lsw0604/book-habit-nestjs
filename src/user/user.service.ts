@@ -3,13 +3,20 @@ import {
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
-import { Prisma } from '@prisma/client';
+import { Prisma, Provider } from '@prisma/client';
 import * as bcrypt from 'bcrypt';
 import { PrismaService } from '../prisma/prisma.service';
 import { CreateUserDto } from './dto/create-user.dto';
 import { UpdateUserDto } from './dto/update-user.dto';
 
 const PASSWORD_SALT_ROUNDS = 10;
+
+export type CreateOAuthUserInput = {
+  email: string;
+  name: string;
+  provider: Provider;
+  profile?: string;
+};
 
 @Injectable()
 export class UserService {
@@ -26,6 +33,18 @@ export class UserService {
         data: { ...createUserDto, password: hashedPassword },
         omit: { password: true },
       });
+    } catch (error) {
+      throw this.mapUniqueConstraintError(error);
+    }
+  }
+
+  // 소셜 로그인(OAuth)으로 새로 만드는 유저용. password 없이 가입하는 경로라
+  // bcrypt.hash를 거치지 않음 - create()는 로컬 회원가입 전용으로 password가 필수임.
+  // findByEmail()과 마찬가지로 AuthService 내부용이라 password를 omit하지 않음
+  // (반환값을 그대로 컨트롤러 응답으로 내보내면 안 됨).
+  async createOAuthUser(input: CreateOAuthUserInput) {
+    try {
+      return await this.prisma.user.create({ data: input });
     } catch (error) {
       throw this.mapUniqueConstraintError(error);
     }
