@@ -7,10 +7,9 @@ export class UserResponseDto {
 
   @ApiProperty({
     description: '이메일',
-    nullable: true,
     example: 'user@example.com',
   })
-  email: string | null;
+  email: string;
 
   @ApiProperty({ description: '닉네임', nullable: true, example: '홍길동' })
   name: string | null;
@@ -26,10 +25,4 @@ export class UserResponseDto {
 
   @ApiProperty({ description: '프로필 이미지 URL', nullable: true })
   profile: string | null;
-
-  @ApiProperty({ description: '생성일시' })
-  createdAt: Date;
-
-  @ApiProperty({ description: '수정일시' })
-  updatedAt: Date;
 }
