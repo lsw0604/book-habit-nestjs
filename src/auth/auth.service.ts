@@ -21,8 +21,13 @@ export class AuthService {
     private readonly kakaoOAuthService: KakaoOAuthService,
   ) {}
 
-  signUp(createUserDto: CreateUserDto) {
-    return this.userService.create(createUserDto);
+  async signUp(createUserDto: CreateUserDto) {
+    const user = await this.userService.create(createUserDto);
+
+    return {
+      token: this.issueTokens({ sub: user.id, email: user.email! }),
+      user,
+    };
   }
 
   async me(email: string) {
