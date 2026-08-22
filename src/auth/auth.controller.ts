@@ -17,7 +17,7 @@ import { AuthService, AuthTokens } from './auth.service';
 import { CreateUserDto } from '../user/dto/create-user.dto';
 import { AuthUserResponseDto, KakaoCallbackDto, LoginDto } from './dto';
 import { ApiResponseDto, ResponseMessage } from '../common';
-import { AccessTokenGuard, OptionalAccessTokenGuard } from './guards';
+import { AccessTokenGuard } from './guards';
 import { CurrentUser } from './decorators';
 import type { JwtPayload } from './types';
 import {
@@ -120,19 +120,14 @@ export class AuthController {
     });
   }
 
-  // 로그인/비로그인 요청 모두 200으로 통과시키고, isAuthenticated로 화면 분기하도록
-  // 하는 용도의 참고 엔드포인트. 다른 컨트롤러에서도 이 가드 + 데코레이터 조합을
-  // 그대로 재사용하면 됨.
+  // access token이 없거나 만료되면 401을 던짐 - 다른 보호된 엔드포인트와 동일하게,
+  // 클라이언트의 공통 401 인터셉터(리프레시 시도 → 실패 시 로그인 페이지로)가 처리하도록 함.
   @Get('me')
-  @UseGuards(OptionalAccessTokenGuard)
-  @ApiOperation({
-    summary: '로그인 상태 확인 (비로그인이어도 401 없이 통과)',
-    description: '비로그인 상태에서는 data가 없는 채로 200을 반환함.',
-  })
+  @UseGuards(AccessTokenGuard)
+  @ApiOperation({ summary: '내 정보 조회' })
   @ApiResponseDto(AuthUserResponseDto)
   @ResponseMessage('로그인 상태를 조회했습니다.')
-  async me(@CurrentUser() user?: JwtPayload) {
-    if (!user?.email) return;
+  async me(@CurrentUser() user: JwtPayload) {
     return {
       user: await this.authService.me(user.email),
     };
