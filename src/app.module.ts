@@ -8,6 +8,7 @@ import { APP_FILTER, APP_INTERCEPTOR } from '@nestjs/core';
 import { ResponseDtoInterceptor, ResponseExceptionFilter } from './common';
 import { UserModule } from './user/user.module';
 import { AuthModule } from './auth/auth.module';
+import { MyBookModule } from './my-book/my-book.module';
 
 @Module({
   imports: [
@@ -16,6 +17,7 @@ import { AuthModule } from './auth/auth.module';
     BooksModule,
     UserModule,
     AuthModule,
+    MyBookModule,
   ],
   controllers: [AppController],
   providers: [
