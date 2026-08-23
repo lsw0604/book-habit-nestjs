@@ -1,4 +1,8 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import {
+  BadRequestException,
+  Injectable,
+  NotFoundException,
+} from '@nestjs/common';
 import { CreateReadingLogDto } from './dto/create-reading-log.dto';
 import { UpdateReadingLogDto } from './dto/update-reading-log.dto';
 import { PrismaService } from '../prisma/prisma.service';
@@ -14,15 +18,57 @@ export class ReadingLogService {
   private async assertMyBookOwnership(userId: number, myBookId: number) {
     const myBook = await this.prismaService.myBook.findFirst({
       where: { id: myBookId, userId },
+      select: { book: { select: { totalPage: true } } },
     });
 
     if (!myBook) {
       throw new NotFoundException('서재 항목을 찾을 수 없습니다.');
     }
+
+    return myBook;
+  }
+
+  private async getBookTotalPage(myBookId: number) {
+    const myBook = await this.prismaService.myBook.findUniqueOrThrow({
+      where: { id: myBookId },
+      select: { book: { select: { totalPage: true } } },
+    });
+
+    return myBook.book.totalPage;
+  }
+
+  /** startPage/endPage, startTime/endTime의 논리적 모순과 book.totalPage 초과 여부를 검증한다. */
+  private assertLogConsistency(
+    input: {
+      startPage: number;
+      endPage: number;
+      startTime: Date;
+      endTime: Date;
+    },
+    totalPage: number | null,
+  ) {
+    if (input.endPage < input.startPage) {
+      throw new BadRequestException(
+        '종료 페이지는 시작 페이지보다 작을 수 없습니다.',
+      );
+    }
+
+    if (totalPage !== null && totalPage > 0 && input.endPage > totalPage) {
+      throw new BadRequestException(
+        '종료 페이지가 총 페이지 수를 초과할 수 없습니다.',
+      );
+    }
+
+    if (input.endTime < input.startTime) {
+      throw new BadRequestException(
+        '종료 시각은 시작 시각보다 빠를 수 없습니다.',
+      );
+    }
   }
 
   async create(userId: number, dto: CreateReadingLogDto) {
-    await this.assertMyBookOwnership(userId, dto.myBookId);
+    const myBook = await this.assertMyBookOwnership(userId, dto.myBookId);
+    this.assertLogConsistency(dto, myBook.book.totalPage);
 
     return this.prismaService.$transaction(async (tx) => {
       const readingLog = await tx.readingLog.create({ data: { ...dto } });
@@ -58,6 +104,17 @@ export class ReadingLogService {
 
   async update(userId: number, id: number, dto: UpdateReadingLogDto) {
     const existing = await this.findOne(userId, id);
+
+    const totalPage = await this.getBookTotalPage(existing.myBookId);
+    this.assertLogConsistency(
+      {
+        startPage: dto.startPage ?? existing.startPage,
+        endPage: dto.endPage ?? existing.endPage,
+        startTime: dto.startTime ?? existing.startTime,
+        endTime: dto.endTime ?? existing.endTime,
+      },
+      totalPage,
+    );
 
     return this.prismaService.$transaction(async (tx) => {
       const readingLog = await tx.readingLog.update({
