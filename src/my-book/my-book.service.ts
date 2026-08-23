@@ -235,6 +235,56 @@ export class MyBookService {
     return this.toDetailResponse(updated);
   }
 
+  /**
+   * WANT_TO_READ 상태에서 첫 ReadingLog가 생성되면 CURRENTLY_READING으로 한 방향 승격한다.
+   * (읽는 기록이 있는데 상태는 "읽고 싶은 책"으로 남는 모순을 방지 — READ/역방향 전환은 여전히 수동)
+   * ReadingLogService.create에서만 호출된다. update/remove는 대상이 아니다.
+   */
+  async startReadingIfWantToRead(
+    myBookId: number,
+    tx: Prisma.TransactionClient = this.prismaService,
+  ) {
+    const myBook = await tx.myBook.findUnique({
+      where: { id: myBookId },
+      select: { status: true, startedAt: true },
+    });
+
+    if (myBook?.status !== MyBookStatus.WANT_TO_READ) {
+      return;
+    }
+
+    await tx.myBook.update({
+      where: { id: myBookId },
+      data: {
+        status: MyBookStatus.CURRENTLY_READING,
+        startedAt: myBook.startedAt ?? new Date(),
+      },
+    });
+  }
+
+  /**
+   * myBookId의 ReadingLog 중 가장 최근 것(date desc, endTime desc 기준)을 기준으로
+   * MyBook.currentPage/lastReadAt을 재계산한다. 로그가 하나도 없으면 초기값(0/null)으로 되돌린다.
+   * ReadingLog의 create/update/remove 직후 같은 트랜잭션(tx) 안에서 호출된다.
+   */
+  async syncProgressFromLatestReadingLog(
+    myBookId: number,
+    tx: Prisma.TransactionClient = this.prismaService,
+  ) {
+    const latestLog = await tx.readingLog.findFirst({
+      where: { myBookId },
+      orderBy: [{ date: 'desc' }, { endTime: 'desc' }],
+    });
+
+    return tx.myBook.update({
+      where: { id: myBookId },
+      data: {
+        currentPage: latestLog?.endPage ?? 0,
+        lastReadAt: latestLog?.endTime ?? null,
+      },
+    });
+  }
+
   async remove(userId: number, id: number) {
     try {
       await this.prismaService.myBook.delete({ where: { id, userId } });
