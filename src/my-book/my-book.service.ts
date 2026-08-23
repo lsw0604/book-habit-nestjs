@@ -7,7 +7,7 @@ import {
 import { MyBook, MyBookStatus, Prisma } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
 import { BooksService } from '../books/books.service';
-import { PaginationUtil } from '../common';
+import { PaginationUtil, PrismaErrorUtil } from '../common';
 import { CreateMyBookDto } from './dto/create-my-book.dto';
 import { UpdateMyBookDto } from './dto/update-my-book.dto';
 import { MyBookDetailInclude, MyBooksListSelect } from './my-book.constants';
@@ -95,11 +95,7 @@ export class MyBookService {
       });
       return this.toDetailResponse(myBook);
     } catch (error) {
-      if (
-        error instanceof Prisma.PrismaClientKnownRequestError &&
-        error.code === 'P2002' &&
-        this.isTargetViolation(error.meta?.target, 'userId')
-      ) {
+      if (PrismaErrorUtil.isUniqueConstraintViolation(error, 'userId')) {
         throw new ConflictException('이미 등록된 책입니다.');
       }
       throw error;
@@ -121,17 +117,6 @@ export class MyBookService {
         review: review ? 1 : 0,
       },
     };
-  }
-
-  /** Prisma P2002 에러의 error.meta.target이 특정 제약을 포함하는지 안전하게 확인한다. */
-  private isTargetViolation(target: unknown, field: string): boolean {
-    if (typeof target === 'string') {
-      return target.includes(field);
-    }
-    if (Array.isArray(target)) {
-      return target.some((t) => typeof t === 'string' && t.includes(field));
-    }
-    return false;
   }
 
   async findAll(
@@ -289,10 +274,7 @@ export class MyBookService {
     try {
       await this.prismaService.myBook.delete({ where: { id, userId } });
     } catch (error) {
-      if (
-        error instanceof Prisma.PrismaClientKnownRequestError &&
-        error.code === 'P2025'
-      ) {
+      if (PrismaErrorUtil.isRecordNotFound(error)) {
         throw new NotFoundException('서재 항목을 찾을 수 없습니다.');
       }
       throw error;
