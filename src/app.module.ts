@@ -9,6 +9,7 @@ import { ResponseDtoInterceptor, ResponseExceptionFilter } from './common';
 import { UserModule } from './user/user.module';
 import { AuthModule } from './auth/auth.module';
 import { MyBookModule } from './my-book/my-book.module';
+import { ReadingLogModule } from './reading-log/reading-log.module';
 
 @Module({
   imports: [
@@ -18,6 +19,7 @@ import { MyBookModule } from './my-book/my-book.module';
     UserModule,
     AuthModule,
     MyBookModule,
+    ReadingLogModule,
   ],
   controllers: [AppController],
   providers: [
