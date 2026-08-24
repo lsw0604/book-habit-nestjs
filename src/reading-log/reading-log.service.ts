@@ -7,7 +7,7 @@ import { CreateReadingLogDto } from './dto/create-reading-log.dto';
 import { UpdateReadingLogDto } from './dto/update-reading-log.dto';
 import { PrismaService } from '../prisma/prisma.service';
 import { MyBookService } from '../my-book/my-book.service';
-import { assertWithinTotalPage } from '../common';
+import { assertWithinTotalPage, PaginationUtil } from '../common';
 
 @Injectable()
 export class ReadingLogService {
@@ -72,13 +72,30 @@ export class ReadingLogService {
     });
   }
 
-  async findAll(userId: number, myBookId: number) {
+  async findAll(
+    userId: number,
+    myBookId: number,
+    { page, limit }: { page: number; limit: number },
+  ) {
     await this.myBookService.assertOwnership(userId, myBookId);
 
-    return this.prismaService.readingLog.findMany({
-      where: { myBookId },
-      orderBy: { date: 'desc' },
+    const where = { myBookId };
+
+    const [items, totalCount] = await this.prismaService.$transaction([
+      this.prismaService.readingLog.findMany({
+        where,
+        ...PaginationUtil.getSkipTake({ pageNumber: page, pageSize: limit }),
+        orderBy: { date: 'desc' },
+      }),
+      this.prismaService.readingLog.count({ where }),
+    ]);
+
+    const meta = PaginationUtil.getPaginationMeta(totalCount, {
+      pageNumber: page,
+      pageSize: limit,
     });
+
+    return { meta, items };
   }
 
   async findOne(userId: number, id: number) {

@@ -1,5 +1,6 @@
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import { ReadingMood } from '@prisma/client';
+import { PaginationMeta, PaginationResponse } from '../../common/pagination';
 
 export class ReadingLogResponseDto {
   @ApiProperty({ description: 'ReadingLog ID', example: 1 })
@@ -41,4 +42,15 @@ export class ReadingLogResponseDto {
 
   @ApiProperty({ description: '수정 시각', type: Date })
   updatedAt: Date;
+}
+
+export class ReadingLogListResponseDto implements PaginationResponse<
+  ReadingLogResponseDto,
+  'items'
+> {
+  @ApiProperty({ type: PaginationMeta })
+  meta: PaginationMeta;
+
+  @ApiProperty({ type: [ReadingLogResponseDto] })
+  items: ReadingLogResponseDto[];
 }
