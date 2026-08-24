@@ -127,11 +127,13 @@ export class MyBookService {
       limit,
       minRating,
       hasReview,
+      order,
     }: {
       page: number;
       limit: number;
       minRating?: number;
       hasReview?: boolean;
+      order: 'asc' | 'desc';
     },
   ) {
     const where: Prisma.MyBookWhereInput = {
@@ -147,9 +149,12 @@ export class MyBookService {
       this.prismaService.myBook.findMany({
         where,
         ...PaginationUtil.getSkipTake({ pageNumber: page, pageSize: limit }),
+        // 방향(order)과 무관하게 한 번도 안 읽은 책은 항상 뒤로 보낸다 -
+        // asc로 뒤집는다고 "안 읽은 책 먼저"가 되는 걸 의도한 게 아니라,
+        // "가장 오래 전에 읽은/등록한 순"을 보고 싶다는 의도이기 때문.
         orderBy: [
-          { lastReadAt: { sort: 'desc', nulls: 'last' } },
-          { createdAt: 'desc' },
+          { lastReadAt: { sort: order, nulls: 'last' } },
+          { createdAt: order },
         ],
         select: MyBooksListSelect,
       }),
