@@ -10,7 +10,7 @@ import * as bcrypt from 'bcrypt';
 import { UserService } from '../user/user.service';
 import { CreateUserDto } from '../user/dto/create-user.dto';
 import { JwtPayload } from './types';
-import { KakaoOAuthService, KakaoOAuthUserDto } from './providers';
+import { KakaoOAuthService, SocialOAuthUserInfo } from './providers';
 
 export type AuthTokens = {
   accessToken: string;
@@ -30,14 +30,13 @@ export class AuthService {
     const user = await this.userService.create(createUserDto);
 
     return {
-      token: this.issueTokens({ sub: user.id, email: user.email! }),
+      token: this.issueTokens({ sub: user.id }),
       user,
     };
   }
 
-  async me(email: string) {
-    const user = await this.userService.findByEmail(email);
-    return user ? this.toPublicUser(user) : null;
+  me(userId: number) {
+    return this.userService.findOne(userId);
   }
 
   async login(email: string, password: string) {
@@ -58,7 +57,7 @@ export class AuthService {
     }
 
     return {
-      token: this.issueTokens({ sub: user.id, email: user.email! }),
+      token: this.issueTokens({ sub: user.id }),
       user: this.toPublicUser(user),
     };
   }
@@ -67,38 +66,37 @@ export class AuthService {
     const redirectUri =
       this.configService.getOrThrow<string>('KAKAO_CALLBACK_URL');
 
-    const { access_token } = await this.kakaoOAuthService.getAccessToken(
+    const userInfo = await this.kakaoOAuthService.exchangeCodeForUserInfo(
       code,
       redirectUri,
     );
-    const kakaoUserInfo =
-      await this.kakaoOAuthService.getUserInfo(access_token);
-    const { email, name, profile } = KakaoOAuthUserDto.from(kakaoUserInfo);
 
-    let user = await this.userService.findByEmail(email);
+    return this.loginWithSocialProvider(Provider.KAKAO, userInfo);
+  }
 
-    // 합성 이메일이 우연히(또는 의도적으로) 다른 provider의 계정과 겹치면
-    // 그대로 병합하지 않고 거부한다 - 그렇지 않으면 이메일만 보고 "같은 사람"으로
-    // 오인해 계정이 뒤바뀔 수 있음(계정 연결 혼동). 로컬 가입 쪽은 이 도메인
-    // 자체를 예약어로 막아뒀지만(UserService.assertNotReservedEmailDomain),
-    // 방어를 이중으로 걸어둔다.
-    if (user && user.provider !== Provider.KAKAO) {
-      throw new ConflictException(
-        '이미 다른 방식으로 가입된 이메일입니다. 카카오 로그인으로 연결할 수 없습니다.',
-      );
+  // 소셜 로그인 provider(카카오, 그리고 앞으로 추가될 구글/네이버 등) 공통 처리.
+  // 각 provider의 XxxOAuthService가 SocialOAuthProvider를 구현해 userInfo만
+  // 넘겨주면, 로그인/가입 및 계정 연결 검증은 여기서 provider 무관하게 처리한다.
+  //
+  // 이메일이 일치해도 기존 유저의 provider가 다르면 병합하지 않고 거부한다 -
+  // 그렇지 않으면 이메일만 보고 "같은 사람"으로 오인해 계정이 뒤바뀔 수 있음
+  // (계정 연결 혼동). 새 provider를 추가해도 이 검증이 그대로 적용된다.
+  private async loginWithSocialProvider(
+    provider: Provider,
+    userInfo: SocialOAuthUserInfo,
+  ) {
+    let user = await this.userService.findByEmail(userInfo.email);
+
+    if (user && user.provider !== provider) {
+      throw new ConflictException('이미 다른 방식으로 가입된 이메일입니다.');
     }
 
     if (!user) {
-      user = await this.userService.createOAuthUser({
-        email,
-        name,
-        provider: Provider.KAKAO,
-        profile,
-      });
+      user = await this.userService.createOAuthUser({ ...userInfo, provider });
     }
 
     return {
-      token: this.issueTokens({ sub: user.id, email: user.email! }),
+      token: this.issueTokens({ sub: user.id }),
       user: this.toPublicUser(user),
     };
   }
@@ -121,7 +119,7 @@ export class AuthService {
     }
 
     const accessToken = this.jwtService.sign(
-      { sub: payload.sub, email: payload.email },
+      { sub: payload.sub },
       {
         secret: this.configService.getOrThrow<string>('JWT_ACCESS_SECRET'),
         expiresIn: this.expiresIn('JWT_ACCESS_EXPIRES_IN'),

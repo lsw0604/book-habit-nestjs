@@ -7,9 +7,14 @@ import {
   KakaoAccessTokenResponse,
   KakaoUserInfoResponse,
 } from './kakao-oauth.types';
+import { KakaoOAuthUserDto } from './kakao-oauth-user.dto';
+import {
+  SocialOAuthProvider,
+  SocialOAuthUserInfo,
+} from '../social-oauth.provider';
 
 @Injectable()
-export class KakaoOAuthService {
+export class KakaoOAuthService implements SocialOAuthProvider {
   private readonly logger = new Logger(KakaoOAuthService.name);
   private readonly TOKEN_URL = 'https://kauth.kakao.com/oauth/token';
   private readonly ME_URL = 'https://kapi.kakao.com/v2/user/me';
@@ -19,7 +24,17 @@ export class KakaoOAuthService {
     private readonly configService: ConfigService,
   ) {}
 
-  async getAccessToken(
+  async exchangeCodeForUserInfo(
+    code: string,
+    redirectUri: string,
+  ): Promise<SocialOAuthUserInfo> {
+    const { access_token } = await this.getAccessToken(code, redirectUri);
+    const kakaoUserInfo = await this.getUserInfo(access_token);
+
+    return KakaoOAuthUserDto.from(kakaoUserInfo);
+  }
+
+  private async getAccessToken(
     code: string,
     redirectUri: string,
   ): Promise<KakaoAccessTokenResponse> {
@@ -45,7 +60,9 @@ export class KakaoOAuthService {
     return data;
   }
 
-  async getUserInfo(accessToken: string): Promise<KakaoUserInfoResponse> {
+  private async getUserInfo(
+    accessToken: string,
+  ): Promise<KakaoUserInfoResponse> {
     const { data } = await firstValueFrom(
       this.httpService
         .get<KakaoUserInfoResponse>(this.ME_URL, {
