@@ -4,6 +4,7 @@ import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
 import {
   BadRequestException,
   INestApplication,
+  Logger,
   RequestMethod,
   ValidationPipe,
 } from '@nestjs/common';
@@ -11,6 +12,28 @@ import cookieParser from 'cookie-parser';
 import helmet from 'helmet';
 import type { CorsOptions } from '@nestjs/common/interfaces/external/cors-options.interface';
 import { loggingMiddleware } from './common';
+
+// 처리되지 않은 동기 예외/Promise rejection이 발생하면 프로세스 상태를 더
+// 신뢰할 수 없으므로, 조용히 계속 도는 대신 스택트레이스를 로깅하고 종료시킴 -
+// 프로세스 매니저(Docker/PM2 등)가 재시작해서 깨끗한 상태로 복구하는 게
+// 오염된 상태로 계속 요청을 처리하는 것보다 안전함. 부팅(NestFactory.create)
+// 중 발생하는 예외도 잡을 수 있도록 bootstrap() 호출보다 먼저 등록함.
+function setUpProcessErrorHandlers() {
+  const logger = new Logger('Process');
+
+  process.on('uncaughtException', (error) => {
+    logger.error('Uncaught Exception', error.stack);
+    process.exit(1);
+  });
+
+  process.on('unhandledRejection', (reason) => {
+    logger.error(
+      'Unhandled Rejection',
+      reason instanceof Error ? reason.stack : String(reason),
+    );
+    process.exit(1);
+  });
+}
 
 function setUpMiddleware(app: INestApplication) {
   app.use(loggingMiddleware);
@@ -70,6 +93,8 @@ function setUpSwagger(app: INestApplication) {
   SwaggerModule.setup('api', app, document);
 }
 async function bootstrap() {
+  setUpProcessErrorHandlers();
+
   const app = await NestFactory.create(AppModule);
 
   // PrismaService.onModuleDestroy($disconnect)가 SIGTERM/SIGINT에도 호출되도록 함 -
