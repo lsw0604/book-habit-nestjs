@@ -11,11 +11,15 @@ import {
   UseGuards,
   ParseIntPipe,
 } from '@nestjs/common';
-import { ApiOperation, ApiQuery, ApiTags } from '@nestjs/swagger';
+import { ApiOperation, ApiTags } from '@nestjs/swagger';
 import { ReadingLogService } from './reading-log.service';
 import { CreateReadingLogDto } from './dto/create-reading-log.dto';
 import { UpdateReadingLogDto } from './dto/update-reading-log.dto';
-import { ReadingLogResponseDto } from './dto/reading-log-response.dto';
+import {
+  ReadingLogListResponseDto,
+  ReadingLogResponseDto,
+} from './dto/reading-log-response.dto';
+import { FindReadingLogQueryDto } from './dto/find-reading-log.query.dto';
 import { ApiResponseDto } from '../common';
 import { AccessTokenGuard } from '../auth/guards';
 import { CurrentUser } from '../auth/decorators';
@@ -34,14 +38,16 @@ export class ReadingLogController {
   }
 
   @Get()
-  @ApiOperation({ summary: '특정 MyBook의 독서 기록 목록 조회' })
-  @ApiQuery({ name: 'myBookId', type: Number, description: 'MyBook ID' })
-  @ApiResponseDto(ReadingLogResponseDto, { isArray: true })
+  @ApiOperation({ summary: '특정 MyBook의 독서 기록 목록 조회 (페이지네이션)' })
+  @ApiResponseDto(ReadingLogListResponseDto)
   findAll(
     @CurrentUser() user: JwtPayload,
-    @Query('myBookId', ParseIntPipe) myBookId: number,
+    @Query() query: FindReadingLogQueryDto,
   ) {
-    return this.readingLogService.findAll(user.sub, myBookId);
+    return this.readingLogService.findAll(user.sub, query.myBookId, {
+      page: query.page,
+      limit: query.limit,
+    });
   }
 
   @Get(':id')
