@@ -6,7 +6,7 @@ import {
   HttpStatus,
   Logger,
 } from '@nestjs/common';
-import type { Response } from 'express';
+import type { Request, Response } from 'express';
 import { ResponseDto } from './response.dto';
 
 // ResponseDtoInterceptor가 성공 응답을 { success, statusCode, message, data }로
@@ -18,7 +18,9 @@ export class ResponseExceptionFilter implements ExceptionFilter {
   private readonly logger = new Logger(ResponseExceptionFilter.name);
 
   catch(exception: unknown, host: ArgumentsHost) {
-    const response = host.switchToHttp().getResponse<Response>();
+    const ctx = host.switchToHttp();
+    const request = ctx.getRequest<Request>();
+    const response = ctx.getResponse<Response>();
 
     const statusCode =
       exception instanceof HttpException
@@ -28,12 +30,13 @@ export class ResponseExceptionFilter implements ExceptionFilter {
     // HttpException으로 의도적으로 던진 4xx는 클라이언트 응답 메시지로 충분히
     // 파악되지만, 예상치 못한(5xx) 예외는 응답 메시지가 뭉뚱그려진("서버 내부
     // 오류가 발생했습니다") 채로 나가서 스택 트레이스를 로그로 남기지 않으면
-    // 원인을 알 방법이 없다.
+    // 원인을 알 방법이 없다. request.id를 같이 찍어서 loggingMiddleware의
+    // 접근 로그 줄과 같은 요청으로 연결해서 추적할 수 있게 함.
     // eslint-disable-next-line @typescript-eslint/no-unsafe-enum-comparison
     if (statusCode >= HttpStatus.INTERNAL_SERVER_ERROR) {
-      this.logger.error(
-        exception instanceof Error ? exception.stack : exception,
-      );
+      const detail =
+        exception instanceof Error ? exception.stack : String(exception);
+      this.logger.error(`[${request.id}] ${detail}`);
     }
 
     const message = this.extractMessage(exception);
