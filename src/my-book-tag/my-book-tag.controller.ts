@@ -25,7 +25,9 @@ export class MyBookTagController {
   constructor(private readonly myBookTagService: MyBookTagService) {}
 
   @Post()
-  @ApiOperation({ summary: '서재 항목에 태그 추가' })
+  @ApiOperation({
+    summary: '서재 항목에 태그 추가 (존재하지 않는 태그 값이면 자동 생성)',
+  })
   @ApiResponseDto(MyBookTagResponseDto)
   create(@CurrentUser() user: JwtPayload, @Body() dto: CreateMyBookTagDto) {
     return this.myBookTagService.create(user.sub, dto);
@@ -43,7 +45,10 @@ export class MyBookTagController {
   }
 
   @Delete(':id')
-  @ApiOperation({ summary: '서재 항목에서 태그 제거' })
+  @ApiOperation({
+    summary:
+      '서재 항목에서 태그 제거 (Tag 자체는 삭제하지 않고 재사용을 위해 유지)',
+  })
   remove(
     @CurrentUser() user: JwtPayload,
     @Param('id', ParseIntPipe) id: number,
