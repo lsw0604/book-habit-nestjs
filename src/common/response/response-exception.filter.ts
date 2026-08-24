@@ -4,6 +4,7 @@ import {
   ExceptionFilter,
   HttpException,
   HttpStatus,
+  Logger,
 } from '@nestjs/common';
 import type { Response } from 'express';
 import { ResponseDto } from './response.dto';
@@ -14,6 +15,8 @@ import { ResponseDto } from './response.dto';
 // 분기할 때 실패 케이스를 구분하지 못함.
 @Catch()
 export class ResponseExceptionFilter implements ExceptionFilter {
+  private readonly logger = new Logger(ResponseExceptionFilter.name);
+
   catch(exception: unknown, host: ArgumentsHost) {
     const response = host.switchToHttp().getResponse<Response>();
 
@@ -21,6 +24,17 @@ export class ResponseExceptionFilter implements ExceptionFilter {
       exception instanceof HttpException
         ? exception.getStatus()
         : HttpStatus.INTERNAL_SERVER_ERROR;
+
+    // HttpException으로 의도적으로 던진 4xx는 클라이언트 응답 메시지로 충분히
+    // 파악되지만, 예상치 못한(5xx) 예외는 응답 메시지가 뭉뚱그려진("서버 내부
+    // 오류가 발생했습니다") 채로 나가서 스택 트레이스를 로그로 남기지 않으면
+    // 원인을 알 방법이 없다.
+    // eslint-disable-next-line @typescript-eslint/no-unsafe-enum-comparison
+    if (statusCode >= HttpStatus.INTERNAL_SERVER_ERROR) {
+      this.logger.error(
+        exception instanceof Error ? exception.stack : exception,
+      );
+    }
 
     const message = this.extractMessage(exception);
 
