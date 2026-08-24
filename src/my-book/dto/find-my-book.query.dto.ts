@@ -4,6 +4,7 @@ import { Transform, Type } from 'class-transformer';
 import {
   IsBoolean,
   IsEnum,
+  IsIn,
   IsInt,
   IsOptional,
   Max,
@@ -52,6 +53,15 @@ export class FindMyBookQueryDto {
   hasReview?: boolean;
 
   @ApiPropertyOptional({
+    description: '정렬 방향 (최근 읽은 순 -> 등록한 순 기준). 미지정 시 desc',
+    enum: ['asc', 'desc'],
+    default: 'desc',
+  })
+  @IsOptional()
+  @IsIn(['asc', 'desc'], { message: 'order는 asc 또는 desc여야 합니다.' })
+  order: 'asc' | 'desc' = 'desc';
+
+  @ApiPropertyOptional({
     description: '페이지 번호',
     example: 1,
     default: 1,
@@ -60,16 +70,26 @@ export class FindMyBookQueryDto {
   @Type(() => Number) // Query String -> Number 변환
   @IsInt({ message: '페이지 번호는 정수여야 합니다.' })
   @Min(1, { message: '페이지 번호는 1 이상이어야 합니다.' })
-  page?: number;
+  page: number = 1;
 
+  // 기본값(default)을 여기 필드 초기값과 @ApiPropertyOptional 문서 양쪽에
+  // 따로 적지 않기 위해, 컨트롤러에서 구조분해 기본값을 또 주지 않고
+  // 이 초기값이 유일한 기본값 소스가 되도록 한다(main.ts의
+  // ValidationPipe({ transform: true })가 plainToInstance로 이 DTO를 만들
+  // 때, 쿼리에 없는 필드는 이 초기값을 그대로 유지함).
   @ApiPropertyOptional({
-    description: '한 페이지에 보여질 항목 수',
-    example: 10,
-    default: 10,
+    description:
+      '한 페이지에 보여질 항목 수. 개인 서재는 규모가 작아(수백~1천 권 내외) ' +
+      '기본값을 크게 잡아 클라이언트가 사실상 페이지네이션 없이 한 번에 ' +
+      '전체를 받도록 함 - page/limit 자체는 나중에 라이브러리가 커질 경우를 ' +
+      '대비해 남겨둔 것',
+    example: 2000,
+    default: 2000,
   })
   @IsOptional()
   @Type(() => Number) // Query String -> Number 변환
   @IsInt({ message: '페이지당 항목 수는 정수여야 합니다.' })
   @Min(1, { message: '페이지당 항목 수는 1 이상이어야 합니다.' })
-  limit?: number;
+  @Max(2000, { message: '페이지당 항목 수는 2000 이하여야 합니다.' })
+  limit: number = 2000;
 }

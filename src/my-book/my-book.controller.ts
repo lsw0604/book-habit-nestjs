@@ -40,18 +40,25 @@ export class MyBookController {
     return this.myBookService.create(user.sub, createMyBookDto);
   }
 
+  // 개인 서재는 항목 수가 작아(수백~1천 권 내외) 클라이언트가 실질적으로
+  // 페이지네이션을 쓰지 않고 한 번에 전체를 받는 걸 전제로 limit 기본값을
+  // 크게 잡아뒀다(FindMyBookQueryDto 참고). page/limit/meta 자체는 나중에
+  // 정말 필요해질 경우를 대비해 남겨둔 것.
   @Get()
   @ApiOperation({
-    summary: '서재 목록 조회 (상태/평점/리뷰 여부 필터, 페이지네이션)',
+    summary: '서재 목록 조회 (상태/평점/리뷰 여부 필터, 정렬)',
   })
   @ApiResponseDto(MyBookListResponseDto)
   findAll(@CurrentUser() user: JwtPayload, @Query() query: FindMyBookQueryDto) {
-    const { status, minRating, hasReview, page = 1, limit = 10 } = query;
+    // page/limit/order의 기본값은 FindMyBookQueryDto 필드 초기값이 유일한
+    // 소스다 - 여기서 또 기본값을 주면 Swagger 문서와 실제 동작이 따로 놀 수 있다.
+    const { status, minRating, hasReview, page, limit, order } = query;
     return this.myBookService.findAll(user.sub, status, {
       page,
       limit,
       minRating,
       hasReview,
+      order,
     });
   }
 
