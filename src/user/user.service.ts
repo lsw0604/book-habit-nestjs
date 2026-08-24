@@ -4,12 +4,13 @@ import {
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
-import { Prisma, Provider } from '@prisma/client';
+import { Provider } from '@prisma/client';
 import * as bcrypt from 'bcrypt';
 import { PrismaService } from '../prisma/prisma.service';
 import { CreateUserDto } from './dto/create-user.dto';
 import { UpdateUserDto } from './dto/update-user.dto';
 import { KAKAO_SYNTHETIC_EMAIL_DOMAIN } from './user.constants';
+import { PrismaErrorUtil } from '../common';
 
 const PASSWORD_SALT_ROUNDS = 10;
 
@@ -123,10 +124,7 @@ export class UserService {
   }
 
   private mapUniqueConstraintError(error: unknown) {
-    if (
-      error instanceof Prisma.PrismaClientKnownRequestError &&
-      error.code === 'P2002'
-    ) {
+    if (PrismaErrorUtil.isUniqueConstraintViolation(error, 'email')) {
       return new ConflictException('이미 가입된 이메일입니다.');
     }
 
