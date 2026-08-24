@@ -1,6 +1,10 @@
 export const ACCESS_TOKEN_COOKIE = 'access_token';
 export const REFRESH_TOKEN_COOKIE = 'refresh_token';
 
+// signup/login/kakao-callback 공통 brute-force 방지용 rate limit
+// (전역 기본치인 분당 100회보다 훨씬 강하게 제한).
+export const AUTH_THROTTLE = { default: { limit: 5, ttl: 60000 } };
+
 // api 전역 prefix('/api') 기준 auth 컨트롤러 경로. refresh/logout에서만
 // refresh_token 쿠키가 브라우저에 의해 전송되도록 범위를 좁히기 위함.
 export const REFRESH_TOKEN_COOKIE_PATH = '/api/auth';

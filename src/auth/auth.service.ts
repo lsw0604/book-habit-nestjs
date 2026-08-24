@@ -113,17 +113,13 @@ export class AuthService {
   }
 
   private issueTokens(payload: JwtPayload): AuthTokens {
-    const accessToken = this.jwtService.sign(payload, {
-      secret: this.configService.getOrThrow<string>('JWT_ACCESS_SECRET'),
-      expiresIn: this.expiresIn('JWT_ACCESS_EXPIRES_IN'),
-    });
-
-    const refreshToken = this.jwtService.sign(payload, {
-      secret: this.configService.getOrThrow<string>('JWT_REFRESH_SECRET'),
-      expiresIn: this.expiresIn('JWT_REFRESH_EXPIRES_IN'),
-    });
-
-    return { accessToken, refreshToken };
+    return {
+      accessToken: this.issueAccessToken(payload),
+      refreshToken: this.jwtService.sign(payload, {
+        secret: this.configService.getOrThrow<string>('JWT_REFRESH_SECRET'),
+        expiresIn: this.expiresIn('JWT_REFRESH_EXPIRES_IN'),
+      }),
+    };
   }
 
   // @nestjs/jwt의 expiresIn은 ms 패키지의 리터럴 유니온(StringValue)을 요구하지만
