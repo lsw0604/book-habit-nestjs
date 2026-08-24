@@ -10,6 +10,10 @@ import { UserModule } from './user/user.module';
 import { AuthModule } from './auth/auth.module';
 import { MyBookModule } from './my-book/my-book.module';
 import { ReadingLogModule } from './reading-log/reading-log.module';
+import { MyBookReviewModule } from './my-book-review/my-book-review.module';
+import { ReviewLikeModule } from './review-like/review-like.module';
+import { ReviewCommentModule } from './review-comment/review-comment.module';
+import { PublicReviewModule } from './public-review/public-review.module';
 
 @Module({
   imports: [
@@ -20,6 +24,10 @@ import { ReadingLogModule } from './reading-log/reading-log.module';
     AuthModule,
     MyBookModule,
     ReadingLogModule,
+    MyBookReviewModule,
+    ReviewLikeModule,
+    ReviewCommentModule,
+    PublicReviewModule,
   ],
   controllers: [AppController],
   providers: [
