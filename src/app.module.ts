@@ -19,10 +19,15 @@ import { TagModule } from './tag/tag.module';
 import { MyBookTagModule } from './my-book-tag/my-book-tag.module';
 import { QuoteModule } from './quote/quote.module';
 import { ReadingGoalModule } from './reading-goal/reading-goal.module';
+import { HealthModule } from './health/health.module';
+import { envValidationSchema } from './config/env-validation.schema';
 
 @Module({
   imports: [
-    ConfigModule.forRoot({ isGlobal: true }),
+    ConfigModule.forRoot({
+      isGlobal: true,
+      validationSchema: envValidationSchema,
+    }),
     // 전역 기본 rate limit. 로그인/회원가입처럼 브루트포스 표적이 되는
     // 엔드포인트는 AuthController에서 @Throttle로 이보다 더 강하게 제한함.
     ThrottlerModule.forRoot([{ ttl: 60000, limit: 100 }]),
@@ -40,6 +45,7 @@ import { ReadingGoalModule } from './reading-goal/reading-goal.module';
     MyBookTagModule,
     QuoteModule,
     ReadingGoalModule,
+    HealthModule,
   ],
   controllers: [AppController],
   providers: [
