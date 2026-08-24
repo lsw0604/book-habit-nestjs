@@ -14,6 +14,8 @@ import { MyBookReviewModule } from './my-book-review/my-book-review.module';
 import { ReviewLikeModule } from './review-like/review-like.module';
 import { ReviewCommentModule } from './review-comment/review-comment.module';
 import { PublicReviewModule } from './public-review/public-review.module';
+import { TagModule } from './tag/tag.module';
+import { MyBookTagModule } from './my-book-tag/my-book-tag.module';
 
 @Module({
   imports: [
@@ -28,6 +30,8 @@ import { PublicReviewModule } from './public-review/public-review.module';
     ReviewLikeModule,
     ReviewCommentModule,
     PublicReviewModule,
+    TagModule,
+    MyBookTagModule,
   ],
   controllers: [AppController],
   providers: [
