@@ -5,6 +5,7 @@ import {
 } from '@nestjs/common';
 import { Prisma } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
+import { MyBookService } from '../my-book/my-book.service';
 import { PaginationUtil, PrismaErrorUtil } from '../common';
 import { CreateMyBookReviewDto } from './dto/create-my-book-review.dto';
 import { UpdateMyBookReviewDto } from './dto/update-my-book-review.dto';
@@ -17,20 +18,13 @@ const COUNT_INCLUDE = {
 
 @Injectable()
 export class MyBookReviewService {
-  constructor(private readonly prismaService: PrismaService) {}
-
-  private async assertMyBookOwnership(userId: number, myBookId: number) {
-    const myBook = await this.prismaService.myBook.findFirst({
-      where: { id: myBookId, userId },
-    });
-
-    if (!myBook) {
-      throw new NotFoundException('서재 항목을 찾을 수 없습니다.');
-    }
-  }
+  constructor(
+    private readonly prismaService: PrismaService,
+    private readonly myBookService: MyBookService,
+  ) {}
 
   async create(userId: number, dto: CreateMyBookReviewDto) {
-    await this.assertMyBookOwnership(userId, dto.myBookId);
+    await this.myBookService.assertOwnership(userId, dto.myBookId);
 
     try {
       const review = await this.prismaService.myBookReview.create({

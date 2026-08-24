@@ -1,5 +1,4 @@
 import {
-  BadRequestException,
   ConflictException,
   Injectable,
   NotFoundException,
@@ -7,7 +6,11 @@ import {
 import { MyBook, MyBookStatus, Prisma } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
 import { BooksService } from '../books/books.service';
-import { PaginationUtil, PrismaErrorUtil } from '../common';
+import {
+  assertWithinTotalPage,
+  PaginationUtil,
+  PrismaErrorUtil,
+} from '../common';
 import { CreateMyBookDto } from './dto/create-my-book.dto';
 import { UpdateMyBookDto } from './dto/update-my-book.dto';
 import { MyBookDetailInclude, MyBooksListSelect } from './my-book.constants';
@@ -182,6 +185,25 @@ export class MyBookService {
     return this.toDetailResponse(myBook);
   }
 
+  /**
+   * MyBook이 userId 소유인지 확인한다. ReadingLog/MyBookReview/MyBookTag처럼
+   * MyBook에 종속된 리소스를 만들기 전에 공통으로 호출하는 용도 - MyBook
+   * 소유권 규칙은 이 애그리거트를 소유한 MyBookService가 유일한 진실 공급원이어야
+   * 각 호출부가 프리즈마를 직접 찔러 규칙을 각자 재구현하는 걸 막을 수 있다.
+   */
+  async assertOwnership(userId: number, myBookId: number) {
+    const myBook = await this.prismaService.myBook.findFirst({
+      where: { id: myBookId, userId },
+      select: { book: { select: { totalPage: true } } },
+    });
+
+    if (!myBook) {
+      throw new NotFoundException('서재 항목을 찾을 수 없습니다.');
+    }
+
+    return myBook;
+  }
+
   async update(userId: number, id: number, updateMyBookDto: UpdateMyBookDto) {
     const existing = await this.prismaService.myBook.findFirst({
       where: { id, userId },
@@ -192,13 +214,10 @@ export class MyBookService {
       throw new NotFoundException('서재 항목을 찾을 수 없습니다.');
     }
 
-    if (
-      updateMyBookDto.currentPage !== undefined &&
-      existing.book.totalPage !== null &&
-      existing.book.totalPage > 0 &&
-      updateMyBookDto.currentPage > existing.book.totalPage
-    ) {
-      throw new BadRequestException(
+    if (updateMyBookDto.currentPage !== undefined) {
+      assertWithinTotalPage(
+        updateMyBookDto.currentPage,
+        existing.book.totalPage,
         '현재 페이지가 총 페이지 수를 초과할 수 없습니다.',
       );
     }
