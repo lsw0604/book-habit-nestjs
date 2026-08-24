@@ -1,6 +1,11 @@
-import { Injectable, UnauthorizedException } from '@nestjs/common';
+import {
+  ConflictException,
+  Injectable,
+  UnauthorizedException,
+} from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { JwtService } from '@nestjs/jwt';
+import { Provider } from '@prisma/client';
 import * as bcrypt from 'bcrypt';
 import { UserService } from '../user/user.service';
 import { CreateUserDto } from '../user/dto/create-user.dto';
@@ -72,11 +77,22 @@ export class AuthService {
 
     let user = await this.userService.findByEmail(email);
 
+    // 합성 이메일이 우연히(또는 의도적으로) 다른 provider의 계정과 겹치면
+    // 그대로 병합하지 않고 거부한다 - 그렇지 않으면 이메일만 보고 "같은 사람"으로
+    // 오인해 계정이 뒤바뀔 수 있음(계정 연결 혼동). 로컬 가입 쪽은 이 도메인
+    // 자체를 예약어로 막아뒀지만(UserService.assertNotReservedEmailDomain),
+    // 방어를 이중으로 걸어둔다.
+    if (user && user.provider !== Provider.KAKAO) {
+      throw new ConflictException(
+        '이미 다른 방식으로 가입된 이메일입니다. 카카오 로그인으로 연결할 수 없습니다.',
+      );
+    }
+
     if (!user) {
       user = await this.userService.createOAuthUser({
         email,
         name,
-        provider: 'KAKAO',
+        provider: Provider.KAKAO,
         profile,
       });
     }

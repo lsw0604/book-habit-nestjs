@@ -1,4 +1,5 @@
 import {
+  BadRequestException,
   ConflictException,
   Injectable,
   NotFoundException,
@@ -8,6 +9,7 @@ import * as bcrypt from 'bcrypt';
 import { PrismaService } from '../prisma/prisma.service';
 import { CreateUserDto } from './dto/create-user.dto';
 import { UpdateUserDto } from './dto/update-user.dto';
+import { KAKAO_SYNTHETIC_EMAIL_DOMAIN } from './user.constants';
 
 const PASSWORD_SALT_ROUNDS = 10;
 
@@ -23,6 +25,8 @@ export class UserService {
   constructor(private readonly prisma: PrismaService) {}
 
   async create(createUserDto: CreateUserDto) {
+    this.assertNotReservedEmailDomain(createUserDto.email);
+
     const hashedPassword = await bcrypt.hash(
       createUserDto.password,
       PASSWORD_SALT_ROUNDS,
@@ -76,6 +80,10 @@ export class UserService {
   async update(id: number, updateUserDto: UpdateUserDto) {
     await this.findOne(id);
 
+    if (updateUserDto.email) {
+      this.assertNotReservedEmailDomain(updateUserDto.email);
+    }
+
     const data = updateUserDto.password
       ? {
           ...updateUserDto,
@@ -104,6 +112,14 @@ export class UserService {
       where: { id },
       omit: { password: true },
     });
+  }
+
+  // 카카오 로그인이 합성하는 이메일 도메인을 로컬 가입/수정에서 선점하지 못하도록 막는다.
+  // (계정 연결 혼동 방지 - user.constants.ts의 KAKAO_SYNTHETIC_EMAIL_DOMAIN 설명 참고)
+  private assertNotReservedEmailDomain(email: string) {
+    if (email.toLowerCase().endsWith(`@${KAKAO_SYNTHETIC_EMAIL_DOMAIN}`)) {
+      throw new BadRequestException('사용할 수 없는 이메일 도메인입니다.');
+    }
   }
 
   private mapUniqueConstraintError(error: unknown) {
