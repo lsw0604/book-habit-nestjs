@@ -39,6 +39,7 @@ export class TagService {
             ],
           }
         : undefined,
+      select: { id: true, value: true },
       orderBy: { value: 'asc' },
       take: limit,
     });
