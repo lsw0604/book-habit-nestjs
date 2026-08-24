@@ -7,6 +7,7 @@ import { CreateReadingLogDto } from './dto/create-reading-log.dto';
 import { UpdateReadingLogDto } from './dto/update-reading-log.dto';
 import { PrismaService } from '../prisma/prisma.service';
 import { MyBookService } from '../my-book/my-book.service';
+import { assertWithinTotalPage } from '../common';
 
 @Injectable()
 export class ReadingLogService {
@@ -14,19 +15,6 @@ export class ReadingLogService {
     private readonly prismaService: PrismaService,
     private readonly myBookService: MyBookService,
   ) {}
-
-  private async assertMyBookOwnership(userId: number, myBookId: number) {
-    const myBook = await this.prismaService.myBook.findFirst({
-      where: { id: myBookId, userId },
-      select: { book: { select: { totalPage: true } } },
-    });
-
-    if (!myBook) {
-      throw new NotFoundException('서재 항목을 찾을 수 없습니다.');
-    }
-
-    return myBook;
-  }
 
   private async getBookTotalPage(myBookId: number) {
     const myBook = await this.prismaService.myBook.findUniqueOrThrow({
@@ -53,11 +41,11 @@ export class ReadingLogService {
       );
     }
 
-    if (totalPage !== null && totalPage > 0 && input.endPage > totalPage) {
-      throw new BadRequestException(
-        '종료 페이지가 총 페이지 수를 초과할 수 없습니다.',
-      );
-    }
+    assertWithinTotalPage(
+      input.endPage,
+      totalPage,
+      '종료 페이지가 총 페이지 수를 초과할 수 없습니다.',
+    );
 
     if (input.endTime < input.startTime) {
       throw new BadRequestException(
@@ -67,7 +55,10 @@ export class ReadingLogService {
   }
 
   async create(userId: number, dto: CreateReadingLogDto) {
-    const myBook = await this.assertMyBookOwnership(userId, dto.myBookId);
+    const myBook = await this.myBookService.assertOwnership(
+      userId,
+      dto.myBookId,
+    );
     this.assertLogConsistency(dto, myBook.book.totalPage);
 
     return this.prismaService.$transaction(async (tx) => {
@@ -82,7 +73,7 @@ export class ReadingLogService {
   }
 
   async findAll(userId: number, myBookId: number) {
-    await this.assertMyBookOwnership(userId, myBookId);
+    await this.myBookService.assertOwnership(userId, myBookId);
 
     return this.prismaService.readingLog.findMany({
       where: { myBookId },

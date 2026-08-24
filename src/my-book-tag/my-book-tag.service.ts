@@ -5,6 +5,7 @@ import {
 } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { TagService } from '../tag/tag.service';
+import { MyBookService } from '../my-book/my-book.service';
 import { PrismaErrorUtil } from '../common';
 import { CreateMyBookTagDto } from './dto/create-my-book-tag.dto';
 import { MyBookTagSelect } from './my-book-tag.constants';
@@ -14,21 +15,11 @@ export class MyBookTagService {
   constructor(
     private readonly prismaService: PrismaService,
     private readonly tagService: TagService,
+    private readonly myBookService: MyBookService,
   ) {}
 
-  private async assertMyBookOwnership(userId: number, myBookId: number) {
-    const myBook = await this.prismaService.myBook.findFirst({
-      where: { id: myBookId, userId },
-      select: { id: true },
-    });
-
-    if (!myBook) {
-      throw new NotFoundException('서재 항목을 찾을 수 없습니다.');
-    }
-  }
-
   async create(userId: number, dto: CreateMyBookTagDto) {
-    await this.assertMyBookOwnership(userId, dto.myBookId);
+    await this.myBookService.assertOwnership(userId, dto.myBookId);
     const tag = await this.tagService.findOrCreate(dto.tagValue);
 
     try {
@@ -45,7 +36,7 @@ export class MyBookTagService {
   }
 
   async findAll(userId: number, myBookId: number) {
-    await this.assertMyBookOwnership(userId, myBookId);
+    await this.myBookService.assertOwnership(userId, myBookId);
 
     return this.prismaService.myBookTag.findMany({
       where: { myBookId },
