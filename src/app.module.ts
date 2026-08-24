@@ -1,10 +1,11 @@
 import { Module } from '@nestjs/common';
 import { ConfigModule } from '@nestjs/config';
+import { ThrottlerGuard, ThrottlerModule } from '@nestjs/throttler';
 import { AppController } from './app.controller';
 import { AppService } from './app.service';
 import { PrismaModule } from './prisma/prisma.module';
 import { BooksModule } from './books/books.module';
-import { APP_FILTER, APP_INTERCEPTOR } from '@nestjs/core';
+import { APP_FILTER, APP_GUARD, APP_INTERCEPTOR } from '@nestjs/core';
 import { ResponseDtoInterceptor, ResponseExceptionFilter } from './common';
 import { UserModule } from './user/user.module';
 import { AuthModule } from './auth/auth.module';
@@ -22,6 +23,9 @@ import { ReadingGoalModule } from './reading-goal/reading-goal.module';
 @Module({
   imports: [
     ConfigModule.forRoot({ isGlobal: true }),
+    // 전역 기본 rate limit. 로그인/회원가입처럼 브루트포스 표적이 되는
+    // 엔드포인트는 AuthController에서 @Throttle로 이보다 더 강하게 제한함.
+    ThrottlerModule.forRoot([{ ttl: 60000, limit: 100 }]),
     PrismaModule,
     BooksModule,
     UserModule,
@@ -41,6 +45,7 @@ import { ReadingGoalModule } from './reading-goal/reading-goal.module';
   providers: [
     { provide: APP_INTERCEPTOR, useClass: ResponseDtoInterceptor },
     { provide: APP_FILTER, useClass: ResponseExceptionFilter },
+    { provide: APP_GUARD, useClass: ThrottlerGuard },
     AppService,
   ],
 })

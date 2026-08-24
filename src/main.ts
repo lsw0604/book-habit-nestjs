@@ -8,9 +8,11 @@ import {
   ValidationPipe,
 } from '@nestjs/common';
 import cookieParser from 'cookie-parser';
+import helmet from 'helmet';
 import type { CorsOptions } from '@nestjs/common/interfaces/external/cors-options.interface';
 
 function setUpMiddleware(app: INestApplication) {
+  app.use(helmet());
   app.use(cookieParser());
   app.useGlobalPipes(
     new ValidationPipe({
@@ -72,6 +74,10 @@ function setUpSwagger(app: INestApplication) {
 }
 async function bootstrap() {
   const app = await NestFactory.create(AppModule);
+
+  // PrismaService.onModuleDestroy($disconnect)가 SIGTERM/SIGINT에도 호출되도록 함 -
+  // 이게 없으면 배포 환경의 컨테이너 재시작 시 DB 커넥션이 정리되지 않은 채 프로세스만 죽음.
+  app.enableShutdownHooks();
 
   app.setGlobalPrefix('api', {
     exclude: [{ path: '/', method: RequestMethod.GET }],

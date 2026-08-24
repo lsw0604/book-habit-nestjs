@@ -10,6 +10,7 @@ import {
 } from '@nestjs/common';
 import { ApiOperation, ApiTags } from '@nestjs/swagger';
 import { ConfigService } from '@nestjs/config';
+import { Throttle } from '@nestjs/throttler';
 import type { CookieOptions, Response } from 'express';
 import { AuthService, AuthTokens } from './auth.service';
 import { CreateUserDto } from '../user/dto/create-user.dto';
@@ -33,6 +34,8 @@ export class AuthController {
     private readonly configService: ConfigService,
   ) {}
 
+  // 브루트포스/스팸 가입 방지를 위해 전역 기본치(분당 100회)보다 훨씬 강하게 제한함.
+  @Throttle({ default: { limit: 5, ttl: 60000 } })
   @Post('signup')
   @ApiOperation({ summary: '회원가입' })
   @ApiResponseDto(AuthUserResponseDto)
@@ -50,6 +53,8 @@ export class AuthController {
     };
   }
 
+  // 비밀번호 brute force 방지를 위해 전역 기본치보다 훨씬 강하게 제한함.
+  @Throttle({ default: { limit: 5, ttl: 60000 } })
   @Post('login')
   @HttpCode(HttpStatus.OK)
   @ApiOperation({ summary: '로그인' })
@@ -73,6 +78,7 @@ export class AuthController {
 
   // FE가 카카오 인가 페이지 이동/리다이렉트 수신을 전담하고, 여기서는
   // FE가 넘겨준 code를 받아 토큰 교환 + 로그인/회원가입만 처리함.
+  @Throttle({ default: { limit: 5, ttl: 60000 } })
   @Post('kakao/callback')
   @HttpCode(HttpStatus.OK)
   @ApiOperation({ summary: '카카오 로그인 (FE가 전달한 code로 토큰 교환)' })
