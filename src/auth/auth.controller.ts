@@ -21,6 +21,7 @@ import { CurrentUser } from './decorators';
 import type { JwtPayload } from './types';
 import {
   ACCESS_TOKEN_COOKIE,
+  AUTH_THROTTLE,
   parseExpiresInMs,
   REFRESH_TOKEN_COOKIE,
   REFRESH_TOKEN_COOKIE_PATH,
@@ -34,8 +35,7 @@ export class AuthController {
     private readonly configService: ConfigService,
   ) {}
 
-  // 브루트포스/스팸 가입 방지를 위해 전역 기본치(분당 100회)보다 훨씬 강하게 제한함.
-  @Throttle({ default: { limit: 5, ttl: 60000 } })
+  @Throttle(AUTH_THROTTLE)
   @Post('signup')
   @ApiOperation({ summary: '회원가입' })
   @ApiResponseDto(AuthUserResponseDto)
@@ -53,8 +53,7 @@ export class AuthController {
     };
   }
 
-  // 비밀번호 brute force 방지를 위해 전역 기본치보다 훨씬 강하게 제한함.
-  @Throttle({ default: { limit: 5, ttl: 60000 } })
+  @Throttle(AUTH_THROTTLE)
   @Post('login')
   @HttpCode(HttpStatus.OK)
   @ApiOperation({ summary: '로그인' })
@@ -78,7 +77,7 @@ export class AuthController {
 
   // FE가 카카오 인가 페이지 이동/리다이렉트 수신을 전담하고, 여기서는
   // FE가 넘겨준 code를 받아 토큰 교환 + 로그인/회원가입만 처리함.
-  @Throttle({ default: { limit: 5, ttl: 60000 } })
+  @Throttle(AUTH_THROTTLE)
   @Post('kakao/callback')
   @HttpCode(HttpStatus.OK)
   @ApiOperation({ summary: '카카오 로그인 (FE가 전달한 code로 토큰 교환)' })
