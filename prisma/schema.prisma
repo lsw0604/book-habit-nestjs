@@ -147,15 +147,17 @@ model ReviewComment {
 model Tag {
   id        Int         @id @default(autoincrement())
   value     String      @unique
+  chosung   String // 초성 자동완성 검색용. value에서 추출한 초성 문자열 (예: "자기계발" -> "ㅈㄱㄱㅂ")
   myBookTag MyBookTag[]
 }
 
 model MyBookTag {
-  id       Int    @id @default(autoincrement())
-  myBookId Int
-  tagId    Int
-  myBook   MyBook @relation(fields: [myBookId], references: [id], onDelete: Cascade)
-  tag      Tag    @relation(fields: [tagId], references: [id], onDelete: Cascade)
+  id        Int      @id @default(autoincrement())
+  myBookId  Int
+  tagId     Int
+  createdAt DateTime @default(now())
+  myBook    MyBook   @relation(fields: [myBookId], references: [id], onDelete: Cascade)
+  tag       Tag      @relation(fields: [tagId], references: [id], onDelete: Cascade)
 
   @@unique([myBookId, tagId])
 }
