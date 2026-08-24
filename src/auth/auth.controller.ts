@@ -129,7 +129,7 @@ export class AuthController {
   @ResponseMessage('로그인 상태를 조회했습니다.')
   async me(@CurrentUser() user: JwtPayload) {
     return {
-      user: await this.authService.me(user.email),
+      user: await this.authService.me(user.sub),
     };
   }
 
