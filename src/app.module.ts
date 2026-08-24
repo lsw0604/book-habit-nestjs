@@ -17,6 +17,7 @@ import { PublicReviewModule } from './public-review/public-review.module';
 import { TagModule } from './tag/tag.module';
 import { MyBookTagModule } from './my-book-tag/my-book-tag.module';
 import { QuoteModule } from './quote/quote.module';
+import { ReadingGoalModule } from './reading-goal/reading-goal.module';
 
 @Module({
   imports: [
@@ -34,6 +35,7 @@ import { QuoteModule } from './quote/quote.module';
     TagModule,
     MyBookTagModule,
     QuoteModule,
+    ReadingGoalModule,
   ],
   controllers: [AppController],
   providers: [
