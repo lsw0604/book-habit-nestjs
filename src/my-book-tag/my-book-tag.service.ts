@@ -7,6 +7,7 @@ import { PrismaService } from '../prisma/prisma.service';
 import { TagService } from '../tag/tag.service';
 import { PrismaErrorUtil } from '../common';
 import { CreateMyBookTagDto } from './dto/create-my-book-tag.dto';
+import { MyBookTagSelect } from './my-book-tag.constants';
 
 @Injectable()
 export class MyBookTagService {
@@ -33,7 +34,7 @@ export class MyBookTagService {
     try {
       return await this.prismaService.myBookTag.create({
         data: { myBookId: dto.myBookId, tagId: tag.id },
-        include: { tag: true },
+        select: MyBookTagSelect,
       });
     } catch (error) {
       if (PrismaErrorUtil.isUniqueConstraintViolation(error, 'tagId')) {
@@ -48,7 +49,7 @@ export class MyBookTagService {
 
     return this.prismaService.myBookTag.findMany({
       where: { myBookId },
-      include: { tag: true },
+      select: MyBookTagSelect,
       orderBy: { createdAt: 'asc' },
     });
   }
