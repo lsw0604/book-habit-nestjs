@@ -102,31 +102,14 @@ export class AuthService {
   }
 
   // refresh token 자체는 재발급하지 않음 (stateless라 폐기/회전 추적이 불가능하므로
-  // access token만 갱신하고, refresh token은 자신의 만료 시점까지 그대로 유지함)
-  async refreshAccessToken(
-    refreshToken: string,
-  ): Promise<{ accessToken: string }> {
-    let payload: JwtPayload;
-
-    try {
-      payload = await this.jwtService.verifyAsync<JwtPayload>(refreshToken, {
-        secret: this.configService.getOrThrow<string>('JWT_REFRESH_SECRET'),
-      });
-    } catch {
-      throw new UnauthorizedException(
-        '유효하지 않거나 만료된 refresh token입니다.',
-      );
-    }
-
-    const accessToken = this.jwtService.sign(
-      { sub: payload.sub },
-      {
-        secret: this.configService.getOrThrow<string>('JWT_ACCESS_SECRET'),
-        expiresIn: this.expiresIn('JWT_ACCESS_EXPIRES_IN'),
-      },
-    );
-
-    return { accessToken };
+  // access token만 갱신하고, refresh token은 자신의 만료 시점까지 그대로 유지함).
+  // refresh token 검증은 RefreshTokenGuard(RefreshTokenStrategy)가 컨트롤러
+  // 진입 전에 이미 마쳤으므로, 여기서는 그 payload로 access token만 새로 서명한다.
+  issueAccessToken(payload: JwtPayload): string {
+    return this.jwtService.sign(payload, {
+      secret: this.configService.getOrThrow<string>('JWT_ACCESS_SECRET'),
+      expiresIn: this.expiresIn('JWT_ACCESS_EXPIRES_IN'),
+    });
   }
 
   private issueTokens(payload: JwtPayload): AuthTokens {

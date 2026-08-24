@@ -5,19 +5,17 @@ import {
   HttpCode,
   HttpStatus,
   Post,
-  Req,
   Res,
-  UnauthorizedException,
   UseGuards,
 } from '@nestjs/common';
 import { ApiOperation, ApiTags } from '@nestjs/swagger';
 import { ConfigService } from '@nestjs/config';
-import type { CookieOptions, Request, Response } from 'express';
+import type { CookieOptions, Response } from 'express';
 import { AuthService, AuthTokens } from './auth.service';
 import { CreateUserDto } from '../user/dto/create-user.dto';
 import { AuthUserResponseDto, KakaoCallbackDto, LoginDto } from './dto';
 import { ApiResponseDto, ResponseMessage } from '../common';
-import { AccessTokenGuard } from './guards';
+import { AccessTokenGuard, RefreshTokenGuard } from './guards';
 import { CurrentUser } from './decorators';
 import type { JwtPayload } from './types';
 import {
@@ -97,21 +95,14 @@ export class AuthController {
 
   @Post('refresh')
   @HttpCode(HttpStatus.OK)
+  @UseGuards(RefreshTokenGuard)
   @ApiOperation({ summary: 'access token 재발급' })
   @ResponseMessage('access token이 재발급되었습니다.')
-  async refresh(
-    @Req() req: Request,
+  refresh(
+    @CurrentUser() user: JwtPayload,
     @Res({ passthrough: true }) res: Response,
   ) {
-    const refreshToken = req.cookies?.[REFRESH_TOKEN_COOKIE] as
-      string | undefined;
-
-    if (!refreshToken) {
-      throw new UnauthorizedException('refresh token이 존재하지 않습니다.');
-    }
-
-    const { accessToken } =
-      await this.authService.refreshAccessToken(refreshToken);
+    const accessToken = this.authService.issueAccessToken(user);
 
     this.setCookie(res, ACCESS_TOKEN_COOKIE, accessToken, {
       maxAge: parseExpiresInMs(
