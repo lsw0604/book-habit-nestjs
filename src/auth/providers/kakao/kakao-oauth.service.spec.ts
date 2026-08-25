@@ -3,23 +3,14 @@ import { BadGatewayException } from '@nestjs/common';
 import { HttpService } from '@nestjs/axios';
 import { ConfigService } from '@nestjs/config';
 import { of, throwError } from 'rxjs';
-import type { AxiosError, AxiosResponse } from 'axios';
+import type { AxiosError } from 'axios';
 import { KakaoOAuthService } from './kakao-oauth.service';
 import { KAKAO_SYNTHETIC_EMAIL_DOMAIN } from '../../../user/user.constants';
 import type {
   KakaoAccessTokenResponse,
   KakaoUserInfoResponse,
 } from './kakao-oauth.types';
-
-function fakeAxiosResponse<T>(data: T): AxiosResponse<T> {
-  return {
-    data,
-    status: 200,
-    statusText: 'OK',
-    headers: {},
-    config: {} as AxiosResponse['config'],
-  };
-}
+import { fakeAxiosResponse } from '../../../common/testing/test-helpers';
 
 function fakeUserInfo(
   overrides: Partial<KakaoUserInfoResponse> = {},

@@ -3,24 +3,13 @@ import { BadGatewayException, NotFoundException } from '@nestjs/common';
 import { HttpService } from '@nestjs/axios';
 import { ConfigService } from '@nestjs/config';
 import { of, throwError } from 'rxjs';
-import type { AxiosError, AxiosResponse } from 'axios';
+import type { AxiosError } from 'axios';
 import { AladinBookSearchService } from './aladin-book-search.service';
 import type {
   AladinDocumentRaw,
   ResponseAladinSearchBook,
 } from './aladin.types';
-
-function fakeAxiosResponse(
-  data: ResponseAladinSearchBook,
-): AxiosResponse<ResponseAladinSearchBook> {
-  return {
-    data,
-    status: 200,
-    statusText: 'OK',
-    headers: {},
-    config: {} as AxiosResponse['config'],
-  };
-}
+import { fakeAxiosResponse } from '../../../common/testing/test-helpers';
 
 function fakeItem(overrides: Partial<AladinDocumentRaw> = {}) {
   return {
@@ -73,7 +62,7 @@ describe('AladinBookSearchService', () => {
   it('검색 결과가 있으면 첫 번째 item을 DTO로 변환해 반환한다', async () => {
     httpService.get.mockReturnValue(
       of(
-        fakeAxiosResponse({
+        fakeAxiosResponse<ResponseAladinSearchBook>({
           version: 20131101,
           logo: '',
           title: '',
@@ -99,7 +88,7 @@ describe('AladinBookSearchService', () => {
   it('검색 결과가 없으면 NotFoundException을 던진다', async () => {
     httpService.get.mockReturnValue(
       of(
-        fakeAxiosResponse({
+        fakeAxiosResponse<ResponseAladinSearchBook>({
           version: 20131101,
           logo: '',
           title: '',

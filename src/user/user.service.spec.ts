@@ -4,30 +4,16 @@ import {
   ConflictException,
   NotFoundException,
 } from '@nestjs/common';
-import { Prisma, Provider } from '@prisma/client';
+import { Provider } from '@prisma/client';
 import * as bcrypt from 'bcrypt';
 import { UserService } from './user.service';
 import { PrismaService } from '../prisma/prisma.service';
+import {
+  createPrismaError,
+  firstCallArg,
+} from '../common/testing/test-helpers';
 
 jest.mock('bcrypt');
-
-function createPrismaError(
-  code: string,
-  meta?: Record<string, unknown>,
-): Prisma.PrismaClientKnownRequestError {
-  return new Prisma.PrismaClientKnownRequestError('mock prisma error', {
-    code,
-    clientVersion: '6.12.0',
-    meta,
-  });
-}
-
-function firstCallArg(mockFn: jest.Mock): unknown {
-  const calls = mockFn.mock.calls as unknown[][];
-  const [firstCall] = calls;
-  const [arg] = firstCall;
-  return arg;
-}
 
 describe('UserService', () => {
   let service: UserService;

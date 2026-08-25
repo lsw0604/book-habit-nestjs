@@ -1,16 +1,9 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { NotFoundException } from '@nestjs/common';
-import { Prisma } from '@prisma/client';
 import { BooksService } from './books.service';
 import { PrismaService } from '../prisma/prisma.service';
 import { AladinBookSearchService } from './providers';
-
-function createPrismaError(code: string): Prisma.PrismaClientKnownRequestError {
-  return new Prisma.PrismaClientKnownRequestError('mock prisma error', {
-    code,
-    clientVersion: '6.12.0',
-  });
-}
+import { createPrismaError } from '../common/testing/test-helpers';
 
 describe('BooksService', () => {
   let service: BooksService;

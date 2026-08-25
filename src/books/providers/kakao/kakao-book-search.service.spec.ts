@@ -3,21 +3,10 @@ import { BadGatewayException } from '@nestjs/common';
 import { HttpService } from '@nestjs/axios';
 import { ConfigService } from '@nestjs/config';
 import { of, throwError } from 'rxjs';
-import type { AxiosError, AxiosResponse } from 'axios';
+import type { AxiosError } from 'axios';
 import { KakaoBookSearchService } from './kakao-book-search.service';
 import type { KakaoDocument, ResponseKakaoSearchBook } from './kakao.types';
-
-function fakeAxiosResponse(
-  data: ResponseKakaoSearchBook,
-): AxiosResponse<ResponseKakaoSearchBook> {
-  return {
-    data,
-    status: 200,
-    statusText: 'OK',
-    headers: {},
-    config: {} as AxiosResponse['config'],
-  };
-}
+import { fakeAxiosResponse } from '../../../common/testing/test-helpers';
 
 function fakeDocument(overrides: Partial<KakaoDocument> = {}): KakaoDocument {
   return {
