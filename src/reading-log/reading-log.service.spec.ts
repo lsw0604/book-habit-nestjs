@@ -4,13 +4,7 @@ import { ReadingLogService } from './reading-log.service';
 import { PrismaService } from '../prisma/prisma.service';
 import { MyBookService } from '../my-book/my-book.service';
 import { CreateReadingLogDto } from './dto/create-reading-log.dto';
-
-function firstCallArg(mockFn: jest.Mock): unknown {
-  const calls = mockFn.mock.calls as unknown[][];
-  const [firstCall] = calls;
-  const [arg] = firstCall;
-  return arg;
-}
+import { firstCallArg } from '../common/testing/test-helpers';
 
 function baseCreateDto(
   overrides: Partial<CreateReadingLogDto> = {},

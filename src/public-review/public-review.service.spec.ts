@@ -1,13 +1,7 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { PublicReviewService } from './public-review.service';
 import { PrismaService } from '../prisma/prisma.service';
-
-function firstCallArg(mockFn: jest.Mock): unknown {
-  const calls = mockFn.mock.calls as unknown[][];
-  const [firstCall] = calls;
-  const [arg] = firstCall;
-  return arg;
-}
+import { firstCallArg } from '../common/testing/test-helpers';
 
 function fakeReviewRow(overrides: Record<string, unknown> = {}) {
   return {

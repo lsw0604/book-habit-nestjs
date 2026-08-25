@@ -2,13 +2,7 @@ import { Test, TestingModule } from '@nestjs/testing';
 import { NotFoundException } from '@nestjs/common';
 import { QuoteService } from './quote.service';
 import { PrismaService } from '../prisma/prisma.service';
-
-function firstCallArg(mockFn: jest.Mock): unknown {
-  const calls = mockFn.mock.calls as unknown[][];
-  const [firstCall] = calls;
-  const [arg] = firstCall;
-  return arg;
-}
+import { firstCallArg } from '../common/testing/test-helpers';
 
 describe('QuoteService', () => {
   let service: QuoteService;

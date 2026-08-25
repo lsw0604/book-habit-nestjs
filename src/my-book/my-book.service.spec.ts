@@ -8,6 +8,11 @@ import { MyBookStatus, Prisma } from '@prisma/client';
 import { MyBookService } from './my-book.service';
 import { PrismaService } from '../prisma/prisma.service';
 import { BooksService } from '../books/books.service';
+import {
+  callWhere,
+  createPrismaError,
+  firstCallArg,
+} from '../common/testing/test-helpers';
 
 type MockPrismaService = {
   myBook: {
@@ -25,34 +30,8 @@ type MockPrismaService = {
   $transaction: jest.Mock;
 };
 
-function createPrismaError(
-  code: string,
-  meta?: Record<string, unknown>,
-): Prisma.PrismaClientKnownRequestError {
-  return new Prisma.PrismaClientKnownRequestError('mock prisma error', {
-    code,
-    clientVersion: '6.12.0',
-    meta,
-  });
-}
-
-function firstCallArg(mockFn: jest.Mock): unknown {
-  const calls = mockFn.mock.calls as unknown[][];
-  const [firstCall] = calls;
-  const [arg] = firstCall;
-  return arg;
-}
-
 function updateCallData(mockFn: jest.Mock): Prisma.MyBookUpdateInput {
   return (firstCallArg(mockFn) as { data: Prisma.MyBookUpdateInput }).data;
-}
-
-/**
- * Prisma 목은 where를 실제로 평가하지 않으므로, 소유권 조건(userId)은
- * 이렇게 인자를 직접 단언해야만 검증된다 (단언이 없으면 userId를 빼도 테스트가 통과함).
- */
-function callWhere(mockFn: jest.Mock): Record<string, unknown> {
-  return (firstCallArg(mockFn) as { where: Record<string, unknown> }).where;
 }
 
 function createCallData(mockFn: jest.Mock): Prisma.MyBookCreateInput {

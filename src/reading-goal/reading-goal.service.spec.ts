@@ -1,26 +1,12 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { ConflictException, NotFoundException } from '@nestjs/common';
-import { Prisma, ReadingGoalMetric } from '@prisma/client';
+import { ReadingGoalMetric } from '@prisma/client';
 import { ReadingGoalService } from './reading-goal.service';
 import { PrismaService } from '../prisma/prisma.service';
-
-function createPrismaError(
-  code: string,
-  meta?: Record<string, unknown>,
-): Prisma.PrismaClientKnownRequestError {
-  return new Prisma.PrismaClientKnownRequestError('mock prisma error', {
-    code,
-    clientVersion: '6.12.0',
-    meta,
-  });
-}
-
-function firstCallArg(mockFn: jest.Mock): unknown {
-  const calls = mockFn.mock.calls as unknown[][];
-  const [firstCall] = calls;
-  const [arg] = firstCall;
-  return arg;
-}
+import {
+  createPrismaError,
+  firstCallArg,
+} from '../common/testing/test-helpers';
 
 describe('ReadingGoalService', () => {
   let service: ReadingGoalService;

@@ -1,16 +1,5 @@
-import { Prisma } from '@prisma/client';
 import { PrismaErrorUtil } from './prisma-error.util';
-
-function createPrismaError(
-  code: string,
-  meta?: Record<string, unknown>,
-): Prisma.PrismaClientKnownRequestError {
-  return new Prisma.PrismaClientKnownRequestError('mock prisma error', {
-    code,
-    clientVersion: '6.12.0',
-    meta,
-  });
-}
+import { createPrismaError } from './testing/test-helpers';
 
 describe('PrismaErrorUtil', () => {
   describe('isUniqueConstraintViolation', () => {

@@ -1,23 +1,12 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { NotFoundException } from '@nestjs/common';
-import { Prisma } from '@prisma/client';
 import { ReviewCommentService } from './review-comment.service';
 import { PrismaService } from '../prisma/prisma.service';
 import { MyBookReviewService } from '../my-book-review/my-book-review.service';
-
-function createPrismaError(code: string): Prisma.PrismaClientKnownRequestError {
-  return new Prisma.PrismaClientKnownRequestError('mock prisma error', {
-    code,
-    clientVersion: '6.12.0',
-  });
-}
-
-function firstCallArg(mockFn: jest.Mock): unknown {
-  const calls = mockFn.mock.calls as unknown[][];
-  const [firstCall] = calls;
-  const [arg] = firstCall;
-  return arg;
-}
+import {
+  createPrismaError,
+  firstCallArg,
+} from '../common/testing/test-helpers';
 
 describe('ReviewCommentService', () => {
   let service: ReviewCommentService;
