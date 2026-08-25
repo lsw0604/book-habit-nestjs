@@ -2,7 +2,7 @@ import { Test, TestingModule } from '@nestjs/testing';
 import { NotFoundException } from '@nestjs/common';
 import { QuoteService } from './quote.service';
 import { PrismaService } from '../prisma/prisma.service';
-import { firstCallArg } from '../common/testing/test-helpers';
+import { callWhere } from '../common/testing/test-helpers';
 
 describe('QuoteService', () => {
   let service: QuoteService;
@@ -46,10 +46,10 @@ describe('QuoteService', () => {
 
       await service.create(1, { readingLogId: 1, page: 10, content: '인용' });
 
-      const args = firstCallArg(prismaService.readingLog.findFirst) as {
-        where: { id: number; myBook: { userId: number } };
-      };
-      expect(args.where).toEqual({ id: 1, myBook: { userId: 1 } });
+      expect(callWhere(prismaService.readingLog.findFirst)).toEqual({
+        id: 1,
+        myBook: { userId: 1 },
+      });
     });
 
     it('ReadingLog가 본인 소유가 아니면 NotFoundException을 던지고 생성하지 않는다', async () => {
@@ -88,10 +88,7 @@ describe('QuoteService', () => {
 
       await service.findOne(1, 1);
 
-      const args = firstCallArg(prismaService.quote.findFirst) as {
-        where: { id: number; readingLog: { myBook: { userId: number } } };
-      };
-      expect(args.where).toEqual({
+      expect(callWhere(prismaService.quote.findFirst)).toEqual({
         id: 1,
         readingLog: { myBook: { userId: 1 } },
       });

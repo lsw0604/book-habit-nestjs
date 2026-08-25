@@ -9,6 +9,7 @@ import * as bcrypt from 'bcrypt';
 import { UserService } from './user.service';
 import { PrismaService } from '../prisma/prisma.service';
 import {
+  callData,
   createPrismaError,
   firstCallArg,
 } from '../common/testing/test-helpers';
@@ -78,12 +79,12 @@ describe('UserService', () => {
       });
 
       expect(bcryptHash).toHaveBeenCalledWith('password1234', 10);
-      const args = firstCallArg(prismaService.user.create) as {
-        data: { password: string };
+      const data = callData<{ password: string }>(prismaService.user.create);
+      expect(data.password).toBe('hashed-password');
+      const omitArg = firstCallArg(prismaService.user.create) as {
         omit: { password: boolean };
       };
-      expect(args.data.password).toBe('hashed-password');
-      expect(args.omit).toEqual({ password: true });
+      expect(omitArg.omit).toEqual({ password: true });
     });
 
     it('이미 가입된 이메일이면(P2002) ConflictException을 던진다', async () => {
@@ -112,10 +113,7 @@ describe('UserService', () => {
       });
 
       expect(bcryptHash).not.toHaveBeenCalled();
-      const args = firstCallArg(prismaService.user.create) as {
-        data: Record<string, unknown>;
-      };
-      expect(args.data).toEqual({
+      expect(callData(prismaService.user.create)).toEqual({
         email: 'kakao@example.com',
         name: '카카오유저',
         provider: Provider.KAKAO,
@@ -170,10 +168,8 @@ describe('UserService', () => {
       await service.update(1, { password: 'newpassword1234' });
 
       expect(bcryptHash).toHaveBeenCalledWith('newpassword1234', 10);
-      const args = firstCallArg(prismaService.user.update) as {
-        data: { password: string };
-      };
-      expect(args.data.password).toBe('hashed-password');
+      const data = callData<{ password: string }>(prismaService.user.update);
+      expect(data.password).toBe('hashed-password');
     });
 
     it('password가 없으면 해시 없이 dto를 그대로 사용한다', async () => {
@@ -183,10 +179,9 @@ describe('UserService', () => {
       await service.update(1, { name: '수정된 이름' });
 
       expect(bcryptHash).not.toHaveBeenCalled();
-      const args = firstCallArg(prismaService.user.update) as {
-        data: Record<string, unknown>;
-      };
-      expect(args.data).toEqual({ name: '수정된 이름' });
+      expect(callData(prismaService.user.update)).toEqual({
+        name: '수정된 이름',
+      });
     });
 
     it('이메일을 다른 유저가 이미 쓰고 있으면(P2002) ConflictException을 던진다', async () => {

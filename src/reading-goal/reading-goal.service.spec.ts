@@ -4,8 +4,9 @@ import { ReadingGoalMetric } from '@prisma/client';
 import { ReadingGoalService } from './reading-goal.service';
 import { PrismaService } from '../prisma/prisma.service';
 import {
+  callData,
+  callWhere,
   createPrismaError,
-  firstCallArg,
 } from '../common/testing/test-helpers';
 
 describe('ReadingGoalService', () => {
@@ -51,10 +52,7 @@ describe('ReadingGoalService', () => {
         targetValue: 20,
       });
 
-      const args = firstCallArg(prismaService.readingGoal.create) as {
-        data: Record<string, unknown>;
-      };
-      expect(args.data).toEqual({
+      expect(callData(prismaService.readingGoal.create)).toEqual({
         year: 2026,
         metric: ReadingGoalMetric.BOOK_COUNT,
         targetValue: 20,
@@ -83,10 +81,9 @@ describe('ReadingGoalService', () => {
 
       await service.findAll(1);
 
-      const args = firstCallArg(prismaService.readingGoal.findMany) as {
-        where: Record<string, unknown>;
-      };
-      expect(args.where).toEqual({ userId: 1 });
+      expect(callWhere(prismaService.readingGoal.findMany)).toEqual({
+        userId: 1,
+      });
     });
 
     it('year/month가 있으면 함께 필터링한다', async () => {
@@ -94,10 +91,11 @@ describe('ReadingGoalService', () => {
 
       await service.findAll(1, 2026, 3);
 
-      const args = firstCallArg(prismaService.readingGoal.findMany) as {
-        where: Record<string, unknown>;
-      };
-      expect(args.where).toEqual({ userId: 1, year: 2026, month: 3 });
+      expect(callWhere(prismaService.readingGoal.findMany)).toEqual({
+        userId: 1,
+        year: 2026,
+        month: 3,
+      });
     });
   });
 

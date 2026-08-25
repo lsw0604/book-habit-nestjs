@@ -4,6 +4,8 @@ import { ReviewCommentService } from './review-comment.service';
 import { PrismaService } from '../prisma/prisma.service';
 import { MyBookReviewService } from '../my-book-review/my-book-review.service';
 import {
+  callData,
+  callWhere,
   createPrismaError,
   firstCallArg,
 } from '../common/testing/test-helpers';
@@ -64,10 +66,7 @@ describe('ReviewCommentService', () => {
       await service.create(1, { myBookReviewId: 1, comment: '좋아요' });
 
       expect(myBookReviewService.assertAccessible).toHaveBeenCalledWith(1, 1);
-      const args = firstCallArg(prismaService.reviewComment.create) as {
-        data: Record<string, unknown>;
-      };
-      expect(args.data).toEqual({
+      expect(callData(prismaService.reviewComment.create)).toEqual({
         myBookReviewId: 1,
         comment: '좋아요',
         userId: 1,
@@ -165,10 +164,10 @@ describe('ReviewCommentService', () => {
 
       await service.findOne(1, 1);
 
-      const args = firstCallArg(prismaService.reviewComment.findFirst) as {
-        where: { myBookReview: { OR: unknown[] } };
+      const where = callWhere(prismaService.reviewComment.findFirst) as {
+        myBookReview: { OR: unknown[] };
       };
-      expect(args.where.myBookReview.OR).toEqual([
+      expect(where.myBookReview.OR).toEqual([
         { isPublic: true },
         { myBook: { userId: 1 } },
       ]);
@@ -179,10 +178,10 @@ describe('ReviewCommentService', () => {
 
       await service.findOne(undefined, 1);
 
-      const args = firstCallArg(prismaService.reviewComment.findFirst) as {
-        where: { myBookReview: { OR: unknown[] } };
+      const where = callWhere(prismaService.reviewComment.findFirst) as {
+        myBookReview: { OR: unknown[] };
       };
-      expect(args.where.myBookReview.OR).toEqual([{ isPublic: true }]);
+      expect(where.myBookReview.OR).toEqual([{ isPublic: true }]);
     });
 
     it('접근할 수 없으면 NotFoundException을 던진다', async () => {
@@ -211,13 +210,14 @@ describe('ReviewCommentService', () => {
 
       await service.update(1, 1, { comment: '수정' });
 
-      const args = firstCallArg(prismaService.reviewComment.update) as {
-        where: Record<string, unknown>;
-        data: Record<string, unknown>;
-      };
       // where에 userId가 있어야 남의 댓글을 수정할 수 없다.
-      expect(args.where).toEqual({ id: 1, userId: 1 });
-      expect(args.data).toEqual({ comment: '수정' });
+      expect(callWhere(prismaService.reviewComment.update)).toEqual({
+        id: 1,
+        userId: 1,
+      });
+      expect(callData(prismaService.reviewComment.update)).toEqual({
+        comment: '수정',
+      });
     });
   });
 

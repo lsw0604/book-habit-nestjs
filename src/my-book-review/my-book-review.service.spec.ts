@@ -1,13 +1,12 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { ConflictException, NotFoundException } from '@nestjs/common';
-import { Prisma } from '@prisma/client';
 import { MyBookReviewService } from './my-book-review.service';
 import { PrismaService } from '../prisma/prisma.service';
 import { MyBookService } from '../my-book/my-book.service';
 import {
+  callData,
   callWhere,
   createPrismaError,
-  firstCallArg,
 } from '../common/testing/test-helpers';
 
 function fakeListItem(overrides: Record<string, unknown> = {}) {
@@ -113,13 +112,10 @@ describe('MyBookReviewService', () => {
 
       await service.assertAccessible(1, 1);
 
-      const args = firstCallArg(prismaService.myBookReview.findFirst) as {
-        where: { OR: unknown[] };
+      const where = callWhere(prismaService.myBookReview.findFirst) as {
+        OR: unknown[];
       };
-      expect(args.where.OR).toEqual([
-        { isPublic: true },
-        { myBook: { userId: 1 } },
-      ]);
+      expect(where.OR).toEqual([{ isPublic: true }, { myBook: { userId: 1 } }]);
     });
 
     it('비로그인(userId undefined)이면 본인 소유 조건을 OR에서 완전히 제외한다', async () => {
@@ -127,10 +123,10 @@ describe('MyBookReviewService', () => {
 
       await service.assertAccessible(undefined, 1);
 
-      const args = firstCallArg(prismaService.myBookReview.findFirst) as {
-        where: { OR: unknown[] };
+      const where = callWhere(prismaService.myBookReview.findFirst) as {
+        OR: unknown[];
       };
-      expect(args.where.OR).toEqual([{ isPublic: true }]);
+      expect(where.OR).toEqual([{ isPublic: true }]);
     });
 
     it('접근할 수 없으면 NotFoundException을 던진다', async () => {
@@ -233,12 +229,10 @@ describe('MyBookReviewService', () => {
 
       await service.update(1, 1, { review: '수정' });
 
-      const args = firstCallArg(prismaService.myBookReview.update) as {
-        where: { id: number };
-        data: Record<string, unknown>;
-      };
-      expect(args.where).toEqual({ id: 1 });
-      expect(args.data).toEqual({ review: '수정' });
+      expect(callWhere(prismaService.myBookReview.update)).toEqual({ id: 1 });
+      expect(callData(prismaService.myBookReview.update)).toEqual({
+        review: '수정',
+      });
     });
   });
 
@@ -266,10 +260,7 @@ describe('MyBookReviewService', () => {
 
       await service.findLiked(1, { page: 1, limit: 10 });
 
-      const args = firstCallArg(prismaService.myBookReview.findMany) as {
-        where: Prisma.MyBookReviewWhereInput;
-      };
-      expect(args.where).toEqual(
+      expect(callWhere(prismaService.myBookReview.findMany)).toEqual(
         expect.objectContaining({
           reviewLike: { some: { userId: 1 } },
           OR: [{ isPublic: true }, { myBook: { userId: 1 } }],
@@ -283,10 +274,7 @@ describe('MyBookReviewService', () => {
 
       const result = await service.findCommented(1, { page: 1, limit: 10 });
 
-      const args = firstCallArg(prismaService.myBookReview.findMany) as {
-        where: Prisma.MyBookReviewWhereInput;
-      };
-      expect(args.where).toEqual(
+      expect(callWhere(prismaService.myBookReview.findMany)).toEqual(
         expect.objectContaining({
           reviewComment: { some: { userId: 1 } },
         }),
