@@ -104,7 +104,10 @@ describe('MyBookReviewService', () => {
     });
   });
 
-  describe('accessibleOr (assertAccessible/findOne을 통해 검증)', () => {
+  // accessibleOr는 "공개거나 본인 것" 규칙으로, 좋아요/댓글 작성 가능 여부를
+  // 판정하는 assertAccessible에서만 쓰인다. findOne은 소유자 전용으로 분리되어
+  // 더 이상 이 규칙을 쓰지 않는다 (남의 공개 리뷰 열람은 public-review 담당).
+  describe('accessibleOr (assertAccessible을 통해 검증)', () => {
     it('로그인한 유저면 OR에 본인 소유 조건을 포함한다', async () => {
       prismaService.myBookReview.findFirst.mockResolvedValue({ id: 1 });
 
@@ -139,17 +142,26 @@ describe('MyBookReviewService', () => {
     });
   });
 
-  describe('findOne', () => {
-    it('접근할 수 없으면 NotFoundException을 던진다', async () => {
-      prismaService.myBookReview.findFirst.mockResolvedValue(null);
+  describe('findOne (소유자 전용)', () => {
+    it('myBook.userId로만 스코프하고 공개 여부(OR)는 보지 않는다', async () => {
+      prismaService.myBookReview.findFirst.mockResolvedValue({ id: 42 });
 
-      await expect(service.findOne(undefined, 999)).rejects.toThrow(
-        NotFoundException,
-      );
+      await service.findOne(7, 42);
+
+      const where = callWhere(prismaService.myBookReview.findFirst);
+      expect(where).toEqual({ id: 42, myBook: { userId: 7 } });
+      // 남의 공개 리뷰까지 열리면 안 되므로 isPublic 분기가 없어야 한다.
+      expect(where).not.toHaveProperty('OR');
     });
 
-    it('접근 가능하면 그대로 반환한다', async () => {
-      const review = { id: 1, isPublic: true };
+    it('남의 리뷰는 공개여도 NotFoundException을 던진다', async () => {
+      prismaService.myBookReview.findFirst.mockResolvedValue(null);
+
+      await expect(service.findOne(7, 999)).rejects.toThrow(NotFoundException);
+    });
+
+    it('본인 리뷰면 그대로 반환한다', async () => {
+      const review = { id: 1, isPublic: false };
       prismaService.myBookReview.findFirst.mockResolvedValue(review);
 
       await expect(service.findOne(1, 1)).resolves.toBe(review);

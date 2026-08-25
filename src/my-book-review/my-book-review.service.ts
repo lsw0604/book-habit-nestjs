@@ -158,9 +158,17 @@ export class MyBookReviewService {
     return review;
   }
 
-  async findOne(userId: number | undefined, id: number) {
+  /**
+   * 본인이 작성한 한줄평의 관리용 단건 조회 (myBookId/isPublic 등 수정에 필요한 필드 포함).
+   *
+   * 남의 공개 한줄평 열람은 여기가 아니라 public-review 모듈(GET /public-review/:id)이
+   * 담당한다 - 타인에게는 내부 식별자(myBookId) 대신 author/isLiked를 내려야 하므로
+   * 응답 형태 자체가 다르다. 좋아요/댓글 작성 시의 접근 가능 여부 판정은
+   * assertAccessible(공개거나 본인 것)이 별도로 담당한다.
+   */
+  async findOne(userId: number, id: number) {
     const review = await this.prismaService.myBookReview.findFirst({
-      where: { id, OR: this.accessibleOr(userId) },
+      where: { id, myBook: { userId } },
       include: COUNT_INCLUDE,
     });
 
