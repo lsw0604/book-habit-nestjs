@@ -8,6 +8,18 @@ import {
   firstCallArg,
 } from '../common/testing/test-helpers';
 
+function fakeCommentRow(overrides: Record<string, unknown> = {}) {
+  return {
+    id: 1,
+    myBookReviewId: 1,
+    comment: '좋아요',
+    createdAt: new Date('2026-01-01'),
+    updatedAt: new Date('2026-01-01'),
+    user: { id: 5, name: '홍길동', profile: null },
+    ...overrides,
+  };
+}
+
 describe('ReviewCommentService', () => {
   let service: ReviewCommentService;
   let prismaService: {
@@ -47,13 +59,18 @@ describe('ReviewCommentService', () => {
   describe('create', () => {
     it('대상 리뷰에 접근 가능한지 먼저 확인한 뒤 댓글을 생성한다', async () => {
       myBookReviewService.assertAccessible.mockResolvedValue({ id: 1 });
-      prismaService.reviewComment.create.mockResolvedValue({ id: 1 });
+      prismaService.reviewComment.create.mockResolvedValue(fakeCommentRow());
 
       await service.create(1, { myBookReviewId: 1, comment: '좋아요' });
 
       expect(myBookReviewService.assertAccessible).toHaveBeenCalledWith(1, 1);
-      expect(prismaService.reviewComment.create).toHaveBeenCalledWith({
-        data: { myBookReviewId: 1, comment: '좋아요', userId: 1 },
+      const args = firstCallArg(prismaService.reviewComment.create) as {
+        data: Record<string, unknown>;
+      };
+      expect(args.data).toEqual({
+        myBookReviewId: 1,
+        comment: '좋아요',
+        userId: 1,
       });
     });
 
@@ -80,6 +97,65 @@ describe('ReviewCommentService', () => {
         undefined,
         1,
       );
+    });
+  });
+
+  // 댓글 목록에 작성자 이름/프로필을 그려야 하므로 user 관계를 author로 노출한다.
+  // 단 User에는 password/email이 있어, select를 명시하지 않으면 그대로 새어나간다.
+  describe('작성자(author) 노출', () => {
+    const selectedUserFields = { id: true, name: true, profile: true };
+
+    it.each([
+      ['create', () => service.create(1, { myBookReviewId: 1, comment: 'ㅋ' })],
+      ['findOne', () => service.findOne(1, 1)],
+      ['update', () => service.update(1, 1, { comment: '수정' })],
+    ])('%s는 user에서 안전한 필드만 select한다', async (_name, call) => {
+      myBookReviewService.assertAccessible.mockResolvedValue({ id: 1 });
+      prismaService.reviewComment.create.mockResolvedValue(fakeCommentRow());
+      prismaService.reviewComment.findFirst.mockResolvedValue(fakeCommentRow());
+      prismaService.reviewComment.update.mockResolvedValue(fakeCommentRow());
+
+      await call();
+
+      const mocks = [
+        prismaService.reviewComment.create,
+        prismaService.reviewComment.findFirst,
+        prismaService.reviewComment.update,
+      ];
+      const called = mocks.find((m) => m.mock.calls.length > 0)!;
+      const args = firstCallArg(called) as {
+        select: { user: { select: Record<string, boolean> } };
+      };
+      expect(args.select.user.select).toEqual(selectedUserFields);
+      // password/email이 select에 섞이면 응답으로 새어나간다.
+      expect(args.select.user.select).not.toHaveProperty('password');
+      expect(args.select.user.select).not.toHaveProperty('email');
+    });
+
+    it('findAll도 user를 안전한 필드로만 select한다', async () => {
+      myBookReviewService.assertAccessible.mockResolvedValue({ id: 1 });
+      prismaService.reviewComment.findMany.mockResolvedValue([]);
+
+      await service.findAll(1, 1);
+
+      const args = firstCallArg(prismaService.reviewComment.findMany) as {
+        select: { user: { select: Record<string, boolean> } };
+      };
+      expect(args.select.user.select).toEqual(selectedUserFields);
+    });
+
+    it('user를 author로 매핑하고 raw userId는 응답에 넣지 않는다', async () => {
+      myBookReviewService.assertAccessible.mockResolvedValue({ id: 1 });
+      prismaService.reviewComment.findMany.mockResolvedValue([
+        fakeCommentRow(),
+      ]);
+
+      const [comment] = await service.findAll(1, 1);
+
+      expect(comment.author).toEqual({ id: 5, name: '홍길동', profile: null });
+      expect(comment).not.toHaveProperty('user');
+      // 내 댓글 여부는 author.id로 판별하므로 raw userId는 불필요하다.
+      expect(comment).not.toHaveProperty('userId');
     });
   });
 
@@ -135,10 +211,13 @@ describe('ReviewCommentService', () => {
 
       await service.update(1, 1, { comment: '수정' });
 
-      expect(prismaService.reviewComment.update).toHaveBeenCalledWith({
-        where: { id: 1, userId: 1 },
-        data: { comment: '수정' },
-      });
+      const args = firstCallArg(prismaService.reviewComment.update) as {
+        where: Record<string, unknown>;
+        data: Record<string, unknown>;
+      };
+      // where에 userId가 있어야 남의 댓글을 수정할 수 없다.
+      expect(args.where).toEqual({ id: 1, userId: 1 });
+      expect(args.data).toEqual({ comment: '수정' });
     });
   });
 
