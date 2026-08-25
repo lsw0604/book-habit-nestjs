@@ -9,7 +9,7 @@ function fakeReviewRow(overrides: Record<string, unknown> = {}) {
     id: 1,
     review: '좋았다',
     createdAt: new Date('2026-01-01'),
-    myBook: { user: { id: 5, name: '홍길동', profile: null } },
+    myBook: { rating: 4, user: { id: 5, name: '홍길동', profile: null } },
     _count: { reviewLike: 0, reviewComment: 0 },
     reviewLike: [],
     ...overrides,
@@ -145,6 +145,47 @@ describe('PublicReviewService', () => {
       expect(result).not.toHaveProperty('reviewLike');
       expect(result).not.toHaveProperty('myBookId');
       expect(result).not.toHaveProperty('isPublic');
+    });
+  });
+
+  // isPublic은 "내 감상(한줄평 + 평점) 공개"를 뜻하므로 rating은 함께 노출하되,
+  // 개인 기록에 해당하는 진도/독서 로그는 이 플래그로 공개되지 않아야 한다.
+  describe('평점 노출', () => {
+    it('rating을 최상위로 끌어올려 노출한다', async () => {
+      prismaService.myBookReview.findMany.mockResolvedValue([fakeReviewRow()]);
+      prismaService.myBookReview.count.mockResolvedValue(1);
+
+      const result = await service.findAll(1, undefined, {
+        page: 1,
+        limit: 10,
+      });
+
+      expect(result.items[0].rating).toBe(4);
+    });
+
+    it('myBook에서 rating과 user만 select한다 (진도/로그는 공개 대상이 아님)', async () => {
+      prismaService.myBookReview.findMany.mockResolvedValue([]);
+      prismaService.myBookReview.count.mockResolvedValue(0);
+
+      await service.findAll(1, undefined, { page: 1, limit: 10 });
+
+      const args = firstCallArg(prismaService.myBookReview.findMany) as {
+        select: { myBook: { select: Record<string, unknown> } };
+      };
+      expect(Object.keys(args.select.myBook.select).sort()).toEqual([
+        'rating',
+        'user',
+      ]);
+      expect(args.select.myBook.select).not.toHaveProperty('currentPage');
+      expect(args.select.myBook.select).not.toHaveProperty('readingLog');
+    });
+
+    it('단건 조회도 동일하게 rating을 노출한다', async () => {
+      prismaService.myBookReview.findFirst.mockResolvedValue(fakeReviewRow());
+
+      const result = await service.findOne(1, 42);
+
+      expect(result.rating).toBe(4);
     });
   });
 
