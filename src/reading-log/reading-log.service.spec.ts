@@ -4,7 +4,11 @@ import { ReadingLogService } from './reading-log.service';
 import { PrismaService } from '../prisma/prisma.service';
 import { MyBookService } from '../my-book/my-book.service';
 import { CreateReadingLogDto } from './dto/create-reading-log.dto';
-import { firstCallArg } from '../common/testing/test-helpers';
+import {
+  callData,
+  callWhere,
+  firstCallArg,
+} from '../common/testing/test-helpers';
 
 function baseCreateDto(
   overrides: Partial<CreateReadingLogDto> = {},
@@ -135,10 +139,8 @@ describe('ReadingLogService', () => {
     it('YYYY-MM-DD를 UTC 자정 Date로 변환한다 (하루 밀림 방지)', async () => {
       await service.create(1, baseCreateDto({ date: '2025-12-11' }));
 
-      const args = firstCallArg(mockTx.readingLog.create) as {
-        data: { date: Date };
-      };
-      expect(args.data.date.toISOString()).toBe('2025-12-11T00:00:00.000Z');
+      const data = callData<{ date: Date }>(mockTx.readingLog.create);
+      expect(data.date.toISOString()).toBe('2025-12-11T00:00:00.000Z');
     });
 
     it('존재하지 않는 날짜(2025-02-30)를 거부한다', async () => {
@@ -187,10 +189,10 @@ describe('ReadingLogService', () => {
         }),
       );
 
-      const args = firstCallArg(mockTx.readingLog.create) as {
-        data: { readingMinutes: number };
-      };
-      expect(args.data.readingMinutes).toBe(150);
+      const data = callData<{ readingMinutes: number }>(
+        mockTx.readingLog.create,
+      );
+      expect(data.readingMinutes).toBe(150);
     });
 
     it('수정 시 시각이 바뀌면 다시 계산한다', async () => {
@@ -211,10 +213,10 @@ describe('ReadingLogService', () => {
         endTime: new Date('2026-01-01T13:00:00Z'),
       });
 
-      const args = firstCallArg(mockTx.readingLog.update) as {
-        data: { readingMinutes: number };
-      };
-      expect(args.data.readingMinutes).toBe(180);
+      const data = callData<{ readingMinutes: number }>(
+        mockTx.readingLog.update,
+      );
+      expect(data.readingMinutes).toBe(180);
     });
 
     it('수정 시 시각이 그대로면 독서 시간을 건드리지 않는다', async () => {
@@ -233,10 +235,9 @@ describe('ReadingLogService', () => {
 
       await service.update(1, 1, { memo: '메모만 수정' });
 
-      const args = firstCallArg(mockTx.readingLog.update) as {
-        data: Record<string, unknown>;
-      };
-      expect(args.data).not.toHaveProperty('readingMinutes');
+      expect(callData(mockTx.readingLog.update)).not.toHaveProperty(
+        'readingMinutes',
+      );
     });
   });
 
@@ -254,10 +255,7 @@ describe('ReadingLogService', () => {
         1,
         dto.myBookId,
       );
-      const createArgs = firstCallArg(mockTx.readingLog.create) as {
-        data: Record<string, unknown>;
-      };
-      expect(createArgs.data).toEqual({
+      expect(callData(mockTx.readingLog.create)).toEqual({
         myBookId: dto.myBookId,
         startPage: dto.startPage,
         endPage: dto.endPage,
@@ -289,10 +287,10 @@ describe('ReadingLogService', () => {
 
       await service.findOne(7, 42);
 
-      const args = firstCallArg(prismaService.readingLog.findFirst) as {
-        where: Record<string, unknown>;
-      };
-      expect(args.where).toEqual({ id: 42, myBook: { userId: 7 } });
+      expect(callWhere(prismaService.readingLog.findFirst)).toEqual({
+        id: 42,
+        myBook: { userId: 7 },
+      });
     });
 
     it('findAll은 myBookId를 줘도 사용자 스코프를 함께 건다', async () => {
@@ -305,10 +303,10 @@ describe('ReadingLogService', () => {
       await service.findAll(7, { myBookId: 42, page: 1, limit: 10 });
 
       expect(myBookService.assertOwnership).toHaveBeenCalledWith(7, 42);
-      const args = firstCallArg(prismaService.readingLog.findMany) as {
-        where: Record<string, unknown>;
-      };
-      expect(args.where).toEqual({ myBook: { userId: 7 }, myBookId: 42 });
+      expect(callWhere(prismaService.readingLog.findMany)).toEqual({
+        myBook: { userId: 7 },
+        myBookId: 42,
+      });
     });
 
     // myBookId 없이 전체를 조회하는 경로 - 여기서 사용자 스코프가 빠지면
@@ -320,10 +318,9 @@ describe('ReadingLogService', () => {
       await service.findAll(7, { page: 1, limit: 10 });
 
       expect(myBookService.assertOwnership).not.toHaveBeenCalled();
-      const args = firstCallArg(prismaService.readingLog.findMany) as {
-        where: Record<string, unknown>;
-      };
-      expect(args.where).toEqual({ myBook: { userId: 7 } });
+      expect(callWhere(prismaService.readingLog.findMany)).toEqual({
+        myBook: { userId: 7 },
+      });
     });
   });
 
@@ -373,12 +370,8 @@ describe('ReadingLogService', () => {
 
       await service.update(1, 1, { endPage: 30 });
 
-      const updateArgs = firstCallArg(mockTx.readingLog.update) as {
-        where: { id: number };
-        data: Record<string, unknown>;
-      };
-      expect(updateArgs.where).toEqual({ id: 1 });
-      expect(updateArgs.data).toEqual({ endPage: 30 });
+      expect(callWhere(mockTx.readingLog.update)).toEqual({ id: 1 });
+      expect(callData(mockTx.readingLog.update)).toEqual({ endPage: 30 });
       expect(
         myBookService.syncProgressFromLatestReadingLog,
       ).toHaveBeenCalledWith(existing.myBookId, mockTx);
@@ -460,24 +453,20 @@ describe('ReadingLogService', () => {
           limit: 100,
         });
 
-        const args = firstCallArg(prismaService.readingLog.findMany) as {
-          where: { date: { gte: Date; lte: Date } };
+        const where = callWhere(prismaService.readingLog.findMany) as {
+          date: { gte: Date; lte: Date };
         };
-        expect(args.where.date.gte.toISOString()).toBe(
-          '2024-10-01T00:00:00.000Z',
-        );
-        expect(args.where.date.lte.toISOString()).toBe(
-          '2024-10-31T00:00:00.000Z',
-        );
+        expect(where.date.gte.toISOString()).toBe('2024-10-01T00:00:00.000Z');
+        expect(where.date.lte.toISOString()).toBe('2024-10-31T00:00:00.000Z');
       });
 
       it('한쪽만 줘도 동작한다', async () => {
         await service.findAll(7, { from: '2024-10-01', page: 1, limit: 10 });
 
-        const args = firstCallArg(prismaService.readingLog.findMany) as {
-          where: { date: Record<string, unknown> };
+        const where = callWhere(prismaService.readingLog.findMany) as {
+          date: Record<string, unknown>;
         };
-        expect(Object.keys(args.where.date)).toEqual(['gte']);
+        expect(Object.keys(where.date)).toEqual(['gte']);
       });
 
       it('from이 to보다 늦으면 거부한다', async () => {

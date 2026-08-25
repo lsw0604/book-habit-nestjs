@@ -9,6 +9,7 @@ import { MyBookService } from './my-book.service';
 import { PrismaService } from '../prisma/prisma.service';
 import { BooksService } from '../books/books.service';
 import {
+  callData,
   callWhere,
   createPrismaError,
   firstCallArg,
@@ -31,11 +32,11 @@ type MockPrismaService = {
 };
 
 function updateCallData(mockFn: jest.Mock): Prisma.MyBookUpdateInput {
-  return (firstCallArg(mockFn) as { data: Prisma.MyBookUpdateInput }).data;
+  return callData<Prisma.MyBookUpdateInput>(mockFn);
 }
 
 function createCallData(mockFn: jest.Mock): Prisma.MyBookCreateInput {
-  return (firstCallArg(mockFn) as { data: Prisma.MyBookCreateInput }).data;
+  return callData<Prisma.MyBookCreateInput>(mockFn);
 }
 
 function fakeMyBookDetail(overrides: Record<string, unknown> = {}) {

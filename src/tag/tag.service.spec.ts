@@ -3,6 +3,7 @@ import { getChoseong } from 'es-hangul';
 import { TagService } from './tag.service';
 import { PrismaService } from '../prisma/prisma.service';
 import {
+  callWhere,
   createPrismaError,
   firstCallArg,
 } from '../common/testing/test-helpers';
@@ -92,11 +93,10 @@ describe('TagService', () => {
 
       await service.search(undefined, 10);
 
+      expect(callWhere(prismaService.tag.findMany)).toBeUndefined();
       const args = firstCallArg(prismaService.tag.findMany) as {
-        where: unknown;
         select: unknown;
       };
-      expect(args.where).toBeUndefined();
       expect(args.select).toEqual({ id: true, value: true });
     });
 
@@ -105,10 +105,10 @@ describe('TagService', () => {
 
       await service.search('ㅈㄱ', 10);
 
-      const args = firstCallArg(prismaService.tag.findMany) as {
-        where: { OR: unknown[] };
+      const where = callWhere(prismaService.tag.findMany) as {
+        OR: unknown[];
       };
-      expect(args.where.OR).toEqual([
+      expect(where.OR).toEqual([
         { value: { contains: 'ㅈㄱ' } },
         { chosung: { contains: 'ㅈㄱ' } },
       ]);
