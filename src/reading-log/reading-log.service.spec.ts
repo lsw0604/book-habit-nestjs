@@ -157,6 +157,40 @@ describe('ReadingLogService', () => {
     });
   });
 
+  // ReadingLog는 userId 직접 컬럼이 없어 myBook 관계를 통해서만 소유권을 판별한다.
+  // Prisma 목은 where를 평가하지 않으므로, 이 조건은 인자를 직접 단언해야 검증된다.
+  describe('소유권 스코프 (where 절)', () => {
+    it('findOne은 myBook.userId를 통해 스코프한다', async () => {
+      prismaService.readingLog.findFirst.mockResolvedValue({
+        id: 42,
+        myBookId: 1,
+      });
+
+      await service.findOne(7, 42);
+
+      const args = firstCallArg(prismaService.readingLog.findFirst) as {
+        where: Record<string, unknown>;
+      };
+      expect(args.where).toEqual({ id: 42, myBook: { userId: 7 } });
+    });
+
+    it('findAll은 MyBook 소유권을 확인한 뒤 해당 myBookId로만 조회한다', async () => {
+      myBookService.assertOwnership.mockResolvedValue({
+        book: { totalPage: 300 },
+      });
+      prismaService.readingLog.findMany.mockResolvedValue([]);
+      prismaService.readingLog.count.mockResolvedValue(0);
+
+      await service.findAll(7, 42, { page: 1, limit: 10 });
+
+      expect(myBookService.assertOwnership).toHaveBeenCalledWith(7, 42);
+      const args = firstCallArg(prismaService.readingLog.findMany) as {
+        where: Record<string, unknown>;
+      };
+      expect(args.where).toEqual({ myBookId: 42 });
+    });
+  });
+
   describe('findOne', () => {
     it('본인 소유가 아니거나 존재하지 않으면 NotFoundException을 던진다', async () => {
       prismaService.readingLog.findFirst.mockResolvedValue(null);
