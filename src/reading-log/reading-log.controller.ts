@@ -38,13 +38,19 @@ export class ReadingLogController {
   }
 
   @Get()
-  @ApiOperation({ summary: '특정 MyBook의 독서 기록 목록 조회 (페이지네이션)' })
+  @ApiOperation({
+    summary:
+      '내 독서 기록 목록 조회 (myBookId 지정 시 해당 책만, from/to로 기간 필터, 페이지네이션)',
+  })
   @ApiResponseDto(ReadingLogListResponseDto)
   findAll(
     @CurrentUser() user: JwtPayload,
     @Query() query: FindReadingLogQueryDto,
   ) {
-    return this.readingLogService.findAll(user.sub, query.myBookId, {
+    return this.readingLogService.findAll(user.sub, {
+      myBookId: query.myBookId,
+      from: query.from,
+      to: query.to,
       page: query.page,
       limit: query.limit,
     });
