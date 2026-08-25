@@ -13,10 +13,9 @@ function baseCreateDto(
     myBookId: 1,
     startPage: 10,
     endPage: 20,
-    startTime: new Date('2026-01-01T10:00:00'),
-    endTime: new Date('2026-01-01T11:00:00'),
-    readingMinutes: 60,
-    date: new Date('2026-01-01'),
+    startTime: new Date('2026-01-01T10:00:00Z'),
+    endTime: new Date('2026-01-01T11:00:00Z'),
+    date: '2026-01-01',
     ...overrides,
   };
 }
@@ -123,6 +122,124 @@ describe('ReadingLogService', () => {
     });
   });
 
+  // date는 시각이 아니라 사용자가 고른 "이 독서가 속한 날"이라 YYYY-MM-DD로 받는다.
+  // @db.Date가 UTC 기준으로 날짜를 잘라내므로 UTC 자정으로 정규화해야 하루가 밀리지 않는다.
+  describe('date 정규화', () => {
+    beforeEach(() => {
+      myBookService.assertOwnership.mockResolvedValue({
+        book: { totalPage: 300 },
+      });
+      mockTx.readingLog.create.mockResolvedValue({ id: 1 });
+    });
+
+    it('YYYY-MM-DD를 UTC 자정 Date로 변환한다 (하루 밀림 방지)', async () => {
+      await service.create(1, baseCreateDto({ date: '2025-12-11' }));
+
+      const args = firstCallArg(mockTx.readingLog.create) as {
+        data: { date: Date };
+      };
+      expect(args.data.date.toISOString()).toBe('2025-12-11T00:00:00.000Z');
+    });
+
+    it('존재하지 않는 날짜(2025-02-30)를 거부한다', async () => {
+      // Date가 조용히 2025-03-02로 굴려버리므로 왕복 검증이 없으면 통과해버린다.
+      await expect(
+        service.create(1, baseCreateDto({ date: '2025-02-30' })),
+      ).rejects.toThrow(BadRequestException);
+      expect(mockTx.readingLog.create).not.toHaveBeenCalled();
+    });
+
+    it('미래 날짜를 거부한다 (진도 정렬 1순위 키라 고정될 수 있음)', async () => {
+      const future = new Date();
+      future.setUTCFullYear(future.getUTCFullYear() + 1);
+      const futureDate = future.toISOString().slice(0, 10);
+
+      await expect(
+        service.create(1, baseCreateDto({ date: futureDate })),
+      ).rejects.toThrow(BadRequestException);
+      expect(mockTx.readingLog.create).not.toHaveBeenCalled();
+    });
+
+    it('오늘 날짜는 허용한다', async () => {
+      const today = new Date().toISOString().slice(0, 10);
+
+      await expect(
+        service.create(1, baseCreateDto({ date: today })),
+      ).resolves.toEqual({ id: 1 });
+    });
+  });
+
+  // readingMinutes는 더 이상 클라이언트가 보내지 않는다 - 시각과 어긋날 수 없도록 파생한다.
+  describe('readingMinutes 파생', () => {
+    beforeEach(() => {
+      myBookService.assertOwnership.mockResolvedValue({
+        book: { totalPage: 300 },
+      });
+      mockTx.readingLog.create.mockResolvedValue({ id: 1 });
+    });
+
+    it('startTime~endTime 차이로 계산한다', async () => {
+      await service.create(
+        1,
+        baseCreateDto({
+          startTime: new Date('2026-01-01T10:00:00Z'),
+          endTime: new Date('2026-01-01T12:30:00Z'),
+        }),
+      );
+
+      const args = firstCallArg(mockTx.readingLog.create) as {
+        data: { readingMinutes: number };
+      };
+      expect(args.data.readingMinutes).toBe(150);
+    });
+
+    it('수정 시 시각이 바뀌면 다시 계산한다', async () => {
+      prismaService.readingLog.findFirst.mockResolvedValue({
+        id: 1,
+        myBookId: 1,
+        startPage: 10,
+        endPage: 20,
+        startTime: new Date('2026-01-01T10:00:00Z'),
+        endTime: new Date('2026-01-01T11:00:00Z'),
+      });
+      prismaService.myBook.findUniqueOrThrow.mockResolvedValue({
+        book: { totalPage: 300 },
+      });
+      mockTx.readingLog.update.mockResolvedValue({ id: 1 });
+
+      await service.update(1, 1, {
+        endTime: new Date('2026-01-01T13:00:00Z'),
+      });
+
+      const args = firstCallArg(mockTx.readingLog.update) as {
+        data: { readingMinutes: number };
+      };
+      expect(args.data.readingMinutes).toBe(180);
+    });
+
+    it('수정 시 시각이 그대로면 독서 시간을 건드리지 않는다', async () => {
+      prismaService.readingLog.findFirst.mockResolvedValue({
+        id: 1,
+        myBookId: 1,
+        startPage: 10,
+        endPage: 20,
+        startTime: new Date('2026-01-01T10:00:00Z'),
+        endTime: new Date('2026-01-01T11:00:00Z'),
+      });
+      prismaService.myBook.findUniqueOrThrow.mockResolvedValue({
+        book: { totalPage: 300 },
+      });
+      mockTx.readingLog.update.mockResolvedValue({ id: 1 });
+
+      await service.update(1, 1, { memo: '메모만 수정' });
+
+      const args = firstCallArg(mockTx.readingLog.update) as {
+        data: Record<string, unknown>;
+      };
+      expect(args.data).not.toHaveProperty('readingMinutes');
+    });
+  });
+
   describe('create - 트랜잭션 orchestration', () => {
     it('ReadingLog 생성 후 같은 tx로 상태 승격과 진행률 동기화를 호출한다', async () => {
       myBookService.assertOwnership.mockResolvedValue({
@@ -138,9 +255,19 @@ describe('ReadingLogService', () => {
         dto.myBookId,
       );
       const createArgs = firstCallArg(mockTx.readingLog.create) as {
-        data: CreateReadingLogDto;
+        data: Record<string, unknown>;
       };
-      expect(createArgs.data).toEqual(dto);
+      expect(createArgs.data).toEqual({
+        myBookId: dto.myBookId,
+        startPage: dto.startPage,
+        endPage: dto.endPage,
+        startTime: dto.startTime,
+        endTime: dto.endTime,
+        // date는 문자열이 아니라 UTC 자정 Date로 정규화되고,
+        // readingMinutes는 클라이언트 입력이 아니라 파생된다.
+        date: new Date('2026-01-01T00:00:00.000Z'),
+        readingMinutes: 60,
+      });
       expect(myBookService.startReadingIfWantToRead).toHaveBeenCalledWith(
         dto.myBookId,
         mockTx,
