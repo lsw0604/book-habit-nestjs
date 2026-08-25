@@ -23,21 +23,6 @@ enum MyBookStatus {
   READ // 읽음
 }
 
-enum ReadingMood {
-  INSPIRED // 영감을 받음
-  EXCITED // 흥미로움, 설렘
-  INTRIGUED // 호기심이 생김
-  SATISFIED // 만족스러움
-  NEUTRAL // 중립적
-  CONFUSED // 혼란스러움
-  DISAPPOINTED // 실망스러움
-  BORED // 지루함
-  EMOTIONAL // 감정적으로 움직임
-  THOUGHTFUL // 생각에 잠김
-  CHALLENGED // 도전적인 느낌
-  ENLIGHTENED // 깨달음을 얻음
-}
-
 enum ReadingGoalMetric {
   BOOK_COUNT
   PAGE_COUNT
@@ -173,8 +158,11 @@ model ReadingLog {
   endTime        DateTime
   readingMinutes Int
   date           DateTime     @db.Date
+  // 그날의 감상/기분도 여기에 자유롭게 적는다. 예전엔 readingMood(enum)를 따로 뒀지만
+  // 감정은 열거로 덮을 수 없어(값이 12개까지 늘고 결국 nullable이 됨) 자유 서술로 통합함.
+  // 다시 구조화하려면 "집계해서 보여줄 화면"이 먼저 있어야 한다 - 이전엔 저장만 하고
+  // 어디서도 필터/집계하지 않아 입력 마찰만 남았다.
   memo           String?      @db.VarChar(500)
-  readingMood    ReadingMood? // 필수였던 걸 nullable로 변경 (매 세션 강제 입력은 입력 마찰이 큼)
   quote          Quote[]
   createdAt      DateTime     @default(now())
   updatedAt      DateTime     @updatedAt
