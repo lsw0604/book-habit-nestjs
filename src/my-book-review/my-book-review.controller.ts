@@ -21,7 +21,7 @@ import {
   MyBookReviewResponseDto,
 } from './dto/my-book-review-response.dto';
 import { ApiResponseDto } from '../common';
-import { AccessTokenGuard, OptionalAccessTokenGuard } from '../auth/guards';
+import { AccessTokenGuard } from '../auth/guards';
 import { CurrentUser } from '../auth/decorators';
 
 @ApiTags('MyBookReview')
@@ -82,16 +82,17 @@ export class MyBookReviewController {
   }
 
   @Get(':id')
-  @UseGuards(OptionalAccessTokenGuard)
+  @UseGuards(AccessTokenGuard)
   @ApiOperation({
-    summary: '한줄평 단건 조회 (공개 리뷰이거나 본인 것만, 비로그인 조회 가능)',
+    summary:
+      '내가 작성한 한줄평 단건 조회 (남의 공개 한줄평은 GET /public-review/:id 사용)',
   })
   @ApiResponseDto(MyBookReviewResponseDto)
   findOne(
-    @CurrentUser() user: JwtPayload | undefined,
+    @CurrentUser() user: JwtPayload,
     @Param('id', ParseIntPipe) id: number,
   ) {
-    return this.myBookReviewService.findOne(user?.sub, id);
+    return this.myBookReviewService.findOne(user.sub, id);
   }
 
   @Patch(':id')

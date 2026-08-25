@@ -1,4 +1,5 @@
 import { Test, TestingModule } from '@nestjs/testing';
+import { NotFoundException } from '@nestjs/common';
 import { PublicReviewService } from './public-review.service';
 import { PrismaService } from '../prisma/prisma.service';
 import { firstCallArg } from '../common/testing/test-helpers';
@@ -18,13 +19,21 @@ function fakeReviewRow(overrides: Record<string, unknown> = {}) {
 describe('PublicReviewService', () => {
   let service: PublicReviewService;
   let prismaService: {
-    myBookReview: { findMany: jest.Mock; count: jest.Mock };
+    myBookReview: {
+      findMany: jest.Mock;
+      count: jest.Mock;
+      findFirst: jest.Mock;
+    };
     $transaction: jest.Mock;
   };
 
   beforeEach(async () => {
     prismaService = {
-      myBookReview: { findMany: jest.fn(), count: jest.fn() },
+      myBookReview: {
+        findMany: jest.fn(),
+        count: jest.fn(),
+        findFirst: jest.fn(),
+      },
       $transaction: jest.fn((arg: Promise<unknown>[]) => Promise.all(arg)),
     };
 
@@ -90,6 +99,52 @@ describe('PublicReviewService', () => {
         select: { reviewLike: { where: { userId: number } } };
       };
       expect(args.select.reviewLike.where.userId).toBe(0);
+    });
+  });
+
+  describe('findOne (공개 리뷰 단건)', () => {
+    it('공개 리뷰만 조회하며 소유권 조건은 걸지 않는다', async () => {
+      prismaService.myBookReview.findFirst.mockResolvedValue(fakeReviewRow());
+
+      await service.findOne(7, 42);
+
+      const args = firstCallArg(prismaService.myBookReview.findFirst) as {
+        where: Record<string, unknown>;
+      };
+      // 남의 공개 리뷰도 볼 수 있어야 하므로 userId 스코프가 없어야 한다.
+      expect(args.where).toEqual({ id: 42, isPublic: true });
+    });
+
+    it('비공개 리뷰는 소유자여도 조회되지 않는다 (NotFoundException)', async () => {
+      prismaService.myBookReview.findFirst.mockResolvedValue(null);
+
+      await expect(service.findOne(7, 42)).rejects.toThrow(NotFoundException);
+    });
+
+    it('비로그인이면 isLiked 계산에 sentinel(0)을 사용한다', async () => {
+      prismaService.myBookReview.findFirst.mockResolvedValue(fakeReviewRow());
+
+      await service.findOne(undefined, 42);
+
+      const args = firstCallArg(prismaService.myBookReview.findFirst) as {
+        select: { reviewLike: { where: { userId: number } } };
+      };
+      expect(args.select.reviewLike.where.userId).toBe(0);
+    });
+
+    it('목록과 동일하게 author/isLiked로 매핑하고 내부 식별자를 노출하지 않는다', async () => {
+      prismaService.myBookReview.findFirst.mockResolvedValue(
+        fakeReviewRow({ reviewLike: [{ id: 99 }] }),
+      );
+
+      const result = await service.findOne(7, 42);
+
+      expect(result.author).toEqual({ id: 5, name: '홍길동', profile: null });
+      expect(result.isLiked).toBe(true);
+      expect(result).not.toHaveProperty('myBook');
+      expect(result).not.toHaveProperty('reviewLike');
+      expect(result).not.toHaveProperty('myBookId');
+      expect(result).not.toHaveProperty('isPublic');
     });
   });
 

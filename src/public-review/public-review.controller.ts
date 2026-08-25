@@ -1,9 +1,19 @@
 import type { JwtPayload } from '../auth/types';
-import { Controller, Get, Query, UseGuards } from '@nestjs/common';
+import {
+  Controller,
+  Get,
+  Param,
+  ParseIntPipe,
+  Query,
+  UseGuards,
+} from '@nestjs/common';
 import { ApiOperation, ApiTags } from '@nestjs/swagger';
 import { PublicReviewService } from './public-review.service';
 import { FindPublicReviewQueryDto } from './dto/find-public-review.query.dto';
-import { PublicReviewListResponseDto } from './dto/public-review-response.dto';
+import {
+  PublicReviewItemDto,
+  PublicReviewListResponseDto,
+} from './dto/public-review-response.dto';
 import { ApiResponseDto } from '../common';
 import { OptionalAccessTokenGuard } from '../auth/guards';
 import { CurrentUser } from '../auth/decorators';
@@ -29,5 +39,18 @@ export class PublicReviewController {
       page,
       limit,
     });
+  }
+
+  @Get(':id')
+  @ApiOperation({
+    summary:
+      '공개 한줄평 단건 조회 (비로그인 조회 가능, 비공개 리뷰는 소유자여도 조회되지 않음)',
+  })
+  @ApiResponseDto(PublicReviewItemDto)
+  findOne(
+    @CurrentUser() user: JwtPayload | undefined,
+    @Param('id', ParseIntPipe) id: number,
+  ) {
+    return this.publicReviewService.findOne(user?.sub, id);
   }
 }

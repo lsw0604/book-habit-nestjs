@@ -13,7 +13,8 @@ export class PublicReviewAuthorDto {
   profile: string | null;
 }
 
-export class PublicReviewListItemDto {
+/** 공개 한줄평 항목. 목록(items)과 단건 조회가 같은 형태를 공유한다. */
+export class PublicReviewItemDto {
   @ApiProperty({ description: 'MyBookReview ID', example: 1 })
   id: number;
 
@@ -37,12 +38,12 @@ export class PublicReviewListItemDto {
 }
 
 export class PublicReviewListResponseDto implements PaginationResponse<
-  PublicReviewListItemDto,
+  PublicReviewItemDto,
   'items'
 > {
   @ApiProperty({ type: PaginationMeta })
   meta: PaginationMeta;
 
-  @ApiProperty({ type: [PublicReviewListItemDto] })
-  items: PublicReviewListItemDto[];
+  @ApiProperty({ type: [PublicReviewItemDto] })
+  items: PublicReviewItemDto[];
 }

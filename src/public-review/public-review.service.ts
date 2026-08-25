@@ -1,4 +1,4 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, NotFoundException } from '@nestjs/common';
 import { Prisma } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
 import { PaginationUtil } from '../common';
@@ -42,6 +42,26 @@ export class PublicReviewService {
     });
 
     return { meta, items: items.map((item) => this.toListItem(item)) };
+  }
+
+  /**
+   * 공개 한줄평 단건 조회. 비로그인도 허용하며, 목록과 동일한 형태
+   * (author/isLiked 포함, 내부 식별자인 myBookId/isPublic 제외)로 반환한다.
+   *
+   * 비공개 리뷰는 소유자가 요청해도 여기서는 조회되지 않는다 - 본인 리뷰의
+   * 관리용 조회는 my-book-review 모듈이 담당한다 (공개 피드와 책임 분리).
+   */
+  async findOne(userId: number | undefined, id: number) {
+    const review = await this.prismaService.myBookReview.findFirst({
+      where: { id, isPublic: true },
+      select: buildPublicReviewListSelect(userId),
+    });
+
+    if (!review) {
+      throw new NotFoundException('공개된 한줄평을 찾을 수 없습니다.');
+    }
+
+    return this.toListItem(review);
   }
 
   private toListItem(item: PublicReviewListItem) {
