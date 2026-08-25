@@ -23,6 +23,14 @@ function firstCallArg(mockFn: jest.Mock): unknown {
   return arg;
 }
 
+/**
+ * Prisma 목은 where를 실제로 평가하지 않으므로, 소유권 조건은 이렇게 인자를
+ * 직접 단언해야만 검증된다 (단언이 없으면 소유권 조건을 빼도 테스트가 통과함).
+ */
+function callWhere(mockFn: jest.Mock): Record<string, unknown> {
+  return (firstCallArg(mockFn) as { where: Record<string, unknown> }).where;
+}
+
 function fakeListItem(overrides: Record<string, unknown> = {}) {
   return {
     id: 1,
@@ -166,6 +174,52 @@ describe('MyBookReviewService', () => {
       prismaService.myBookReview.findFirst.mockResolvedValue(review);
 
       await expect(service.findOne(1, 1)).resolves.toBe(review);
+    });
+  });
+
+  // MyBookReview는 userId 직접 컬럼이 없어 myBook 관계를 통해서만 소유권을 판별한다.
+  // 이 관계 조건이 빠지면 남의 한줄평을 수정/삭제할 수 있다.
+  describe('소유권 스코프 (where 절)', () => {
+    it('update의 선행 소유권 확인은 myBook.userId를 통해 스코프한다', async () => {
+      prismaService.myBookReview.findFirst.mockResolvedValue({ id: 42 });
+      prismaService.myBookReview.update.mockResolvedValue({ id: 42 });
+
+      await service.update(7, 42, { review: '수정' });
+
+      expect(callWhere(prismaService.myBookReview.findFirst)).toEqual({
+        id: 42,
+        myBook: { userId: 7 },
+      });
+    });
+
+    it('remove는 myBook.userId를 통해 스코프해 삭제한다', async () => {
+      prismaService.myBookReview.deleteMany.mockResolvedValue({ count: 1 });
+
+      await service.remove(7, 42);
+
+      expect(callWhere(prismaService.myBookReview.deleteMany)).toEqual({
+        id: 42,
+        myBook: { userId: 7 },
+      });
+    });
+
+    it('findAll은 요청자가 작성한 한줄평만 조회한다', async () => {
+      prismaService.myBookReview.findMany.mockResolvedValue([fakeListItem()]);
+      prismaService.myBookReview.count.mockResolvedValue(1);
+
+      const result = await service.findAll(7, { page: 1, limit: 10 });
+
+      expect(callWhere(prismaService.myBookReview.findMany)).toEqual({
+        myBook: { userId: 7 },
+      });
+      // 본인 글이라 isPublic 여부와 무관하게 포함되어야 하므로 OR 필터가 없어야 한다.
+      expect(callWhere(prismaService.myBookReview.findMany)).not.toHaveProperty(
+        'OR',
+      );
+      expect(result.items[0].book).toEqual({
+        title: '책 제목',
+        thumbnail: null,
+      });
     });
   });
 
