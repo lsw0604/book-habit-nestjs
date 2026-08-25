@@ -5,7 +5,6 @@ import {
   BadRequestException,
   INestApplication,
   Logger,
-  RequestMethod,
   ValidationPipe,
 } from '@nestjs/common';
 import cookieParser from 'cookie-parser';
@@ -101,9 +100,7 @@ async function bootstrap() {
   // 이게 없으면 배포 환경의 컨테이너 재시작 시 DB 커넥션이 정리되지 않은 채 프로세스만 죽음.
   app.enableShutdownHooks();
 
-  app.setGlobalPrefix('api', {
-    exclude: [{ path: '/', method: RequestMethod.GET }],
-  });
+  app.setGlobalPrefix('api');
   setUpMiddleware(app);
   setUpCors(app);
   setUpSwagger(app);
