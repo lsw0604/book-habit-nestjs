@@ -39,13 +39,28 @@ export class ReadingLogResponseDto {
   updatedAt: Date;
 }
 
+export class ReadingLogListBookDto {
+  @ApiProperty({ description: '책 제목', example: '미움받을 용기' })
+  title: string;
+
+  @ApiProperty({ description: '썸네일 이미지 URL', nullable: true })
+  thumbnail: string | null;
+}
+
+// 전체 조회(myBookId 미지정)에서는 여러 책이 섞이므로, 단건 응답과 달리
+// 항목마다 어떤 책인지 알 수 있어야 한다.
+export class ReadingLogListItemDto extends ReadingLogResponseDto {
+  @ApiProperty({ description: '책 정보', type: ReadingLogListBookDto })
+  book: ReadingLogListBookDto;
+}
+
 export class ReadingLogListResponseDto implements PaginationResponse<
-  ReadingLogResponseDto,
+  ReadingLogListItemDto,
   'items'
 > {
   @ApiProperty({ type: PaginationMeta })
   meta: PaginationMeta;
 
-  @ApiProperty({ type: [ReadingLogResponseDto] })
-  items: ReadingLogResponseDto[];
+  @ApiProperty({ type: [ReadingLogListItemDto] })
+  items: ReadingLogListItemDto[];
 }

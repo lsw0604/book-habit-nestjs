@@ -295,20 +295,35 @@ describe('ReadingLogService', () => {
       expect(args.where).toEqual({ id: 42, myBook: { userId: 7 } });
     });
 
-    it('findAll은 MyBook 소유권을 확인한 뒤 해당 myBookId로만 조회한다', async () => {
+    it('findAll은 myBookId를 줘도 사용자 스코프를 함께 건다', async () => {
       myBookService.assertOwnership.mockResolvedValue({
         book: { totalPage: 300 },
       });
       prismaService.readingLog.findMany.mockResolvedValue([]);
       prismaService.readingLog.count.mockResolvedValue(0);
 
-      await service.findAll(7, 42, { page: 1, limit: 10 });
+      await service.findAll(7, { myBookId: 42, page: 1, limit: 10 });
 
       expect(myBookService.assertOwnership).toHaveBeenCalledWith(7, 42);
       const args = firstCallArg(prismaService.readingLog.findMany) as {
         where: Record<string, unknown>;
       };
-      expect(args.where).toEqual({ myBookId: 42 });
+      expect(args.where).toEqual({ myBook: { userId: 7 }, myBookId: 42 });
+    });
+
+    // myBookId 없이 전체를 조회하는 경로 - 여기서 사용자 스코프가 빠지면
+    // 남의 독서 기록이 그대로 노출된다.
+    it('findAll은 myBookId가 없어도 반드시 사용자 스코프를 건다', async () => {
+      prismaService.readingLog.findMany.mockResolvedValue([]);
+      prismaService.readingLog.count.mockResolvedValue(0);
+
+      await service.findAll(7, { page: 1, limit: 10 });
+
+      expect(myBookService.assertOwnership).not.toHaveBeenCalled();
+      const args = firstCallArg(prismaService.readingLog.findMany) as {
+        where: Record<string, unknown>;
+      };
+      expect(args.where).toEqual({ myBook: { userId: 7 } });
     });
   });
 
@@ -394,20 +409,107 @@ describe('ReadingLogService', () => {
   });
 
   describe('findAll', () => {
-    it('소유권을 확인하고 페이지네이션 메타를 함께 반환한다', async () => {
-      myBookService.assertOwnership.mockResolvedValue({
-        book: { totalPage: 300 },
-      });
-      const items = [{ id: 1 }, { id: 2 }];
-      prismaService.readingLog.findMany.mockResolvedValue(items);
+    function fakeListRow(overrides: Record<string, unknown> = {}) {
+      return {
+        id: 1,
+        myBookId: 3,
+        readingMinutes: 60,
+        date: new Date('2024-10-23T00:00:00.000Z'),
+        myBook: { book: { title: '미움받을 용기', thumbnail: null } },
+        ...overrides,
+      };
+    }
+
+    it('책 정보를 최상위 book으로 매핑하고 페이지네이션 메타를 함께 반환한다', async () => {
+      prismaService.readingLog.findMany.mockResolvedValue([fakeListRow()]);
       prismaService.readingLog.count.mockResolvedValue(2);
 
-      const result = await service.findAll(1, 1, { page: 1, limit: 10 });
+      const result = await service.findAll(1, { page: 1, limit: 10 });
 
-      expect(myBookService.assertOwnership).toHaveBeenCalledWith(1, 1);
-      expect(result.items).toBe(items);
+      expect(result.items[0].book).toEqual({
+        title: '미움받을 용기',
+        thumbnail: null,
+      });
+      expect(result.items[0]).not.toHaveProperty('myBook');
       expect(result.meta.totalCount).toBe(2);
-      expect(result.meta.totalPages).toBe(1);
+    });
+
+    it('같은 날 여러 세션이 있어도 정렬이 결정적이다', async () => {
+      prismaService.readingLog.findMany.mockResolvedValue([]);
+      prismaService.readingLog.count.mockResolvedValue(0);
+
+      await service.findAll(1, { page: 1, limit: 10 });
+
+      const args = firstCallArg(prismaService.readingLog.findMany) as {
+        orderBy: unknown;
+      };
+      expect(args.orderBy).toEqual([{ date: 'desc' }, { endTime: 'desc' }]);
+    });
+
+    describe('기간 필터', () => {
+      beforeEach(() => {
+        prismaService.readingLog.findMany.mockResolvedValue([]);
+        prismaService.readingLog.count.mockResolvedValue(0);
+      });
+
+      it('from/to를 UTC 자정 기준 범위로 변환한다', async () => {
+        await service.findAll(7, {
+          from: '2024-10-01',
+          to: '2024-10-31',
+          page: 1,
+          limit: 100,
+        });
+
+        const args = firstCallArg(prismaService.readingLog.findMany) as {
+          where: { date: { gte: Date; lte: Date } };
+        };
+        expect(args.where.date.gte.toISOString()).toBe(
+          '2024-10-01T00:00:00.000Z',
+        );
+        expect(args.where.date.lte.toISOString()).toBe(
+          '2024-10-31T00:00:00.000Z',
+        );
+      });
+
+      it('한쪽만 줘도 동작한다', async () => {
+        await service.findAll(7, { from: '2024-10-01', page: 1, limit: 10 });
+
+        const args = firstCallArg(prismaService.readingLog.findMany) as {
+          where: { date: Record<string, unknown> };
+        };
+        expect(Object.keys(args.where.date)).toEqual(['gte']);
+      });
+
+      it('from이 to보다 늦으면 거부한다', async () => {
+        await expect(
+          service.findAll(7, {
+            from: '2024-10-31',
+            to: '2024-10-01',
+            page: 1,
+            limit: 10,
+          }),
+        ).rejects.toThrow(BadRequestException);
+      });
+
+      it('존재하지 않는 날짜를 거부한다', async () => {
+        await expect(
+          service.findAll(7, { from: '2024-02-30', page: 1, limit: 10 }),
+        ).rejects.toThrow(BadRequestException);
+      });
+
+      // 기록 저장과 달리 조회 범위는 미래를 허용해야 한다 (이번 달 말일 등).
+      it('미래 날짜도 조회 범위로는 허용한다', async () => {
+        const future = new Date();
+        future.setUTCFullYear(future.getUTCFullYear() + 1);
+
+        await expect(
+          service.findAll(7, {
+            to: future.toISOString().slice(0, 10),
+            page: 1,
+            limit: 10,
+          }),
+        ).resolves.toBeDefined();
+      });
     });
   });
 });
