@@ -67,6 +67,11 @@ export class PublicReviewService {
   private toListItem(item: PublicReviewListItem) {
     const { myBook, reviewLike, ...rest } = item;
 
-    return { ...rest, author: myBook.user, isLiked: reviewLike.length > 0 };
+    return {
+      ...rest,
+      rating: myBook.rating,
+      author: myBook.user,
+      isLiked: reviewLike.length > 0,
+    };
   }
 }

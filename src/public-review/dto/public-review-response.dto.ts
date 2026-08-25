@@ -21,6 +21,12 @@ export class PublicReviewItemDto {
   @ApiProperty({ description: '한줄평', example: '올해 읽은 책 중 최고였다.' })
   review: string;
 
+  @ApiProperty({
+    description: '작성자가 매긴 평점 (0~5, 0은 미평가)',
+    example: 4,
+  })
+  rating: number;
+
   @ApiProperty({ description: '생성 시각', type: Date })
   createdAt: Date;
 

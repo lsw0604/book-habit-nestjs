@@ -11,8 +11,13 @@ export const buildPublicReviewListSelect = (userId: number | undefined) =>
     id: true,
     review: true,
     createdAt: true,
+    // MyBookReview.isPublic은 "이 책에 대한 내 감상을 공개한다"는 의미이고,
+    // 그 감상에는 한줄평뿐 아니라 평점도 포함된다 - 그래서 rating은 함께 노출한다.
+    // 반면 진도(currentPage)/독서 로그/인용구는 감상이 아니라 개인 기록이므로
+    // 이 플래그로 공개되지 않는다. myBook에서 필요한 필드만 골라 담을 것.
     myBook: {
       select: {
+        rating: true,
         user: { select: { id: true, name: true, profile: true } },
       },
     },
