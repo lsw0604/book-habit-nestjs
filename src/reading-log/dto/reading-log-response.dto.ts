@@ -1,5 +1,4 @@
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
-import { ReadingMood } from '@prisma/client';
 import { PaginationMeta, PaginationResponse } from '../../common/pagination';
 
 export class ReadingLogResponseDto {
@@ -27,15 +26,11 @@ export class ReadingLogResponseDto {
   @ApiProperty({ description: '기록 날짜', type: Date })
   date: Date;
 
-  @ApiPropertyOptional({ description: '메모', nullable: true })
-  memo: string | null;
-
   @ApiPropertyOptional({
-    description: '독서 중 기분',
-    enum: ReadingMood,
+    description: '메모 (읽은 내용, 그날의 감상/기분 등 자유 서술)',
     nullable: true,
   })
-  readingMood: ReadingMood | null;
+  memo: string | null;
 
   @ApiProperty({ description: '생성 시각', type: Date })
   createdAt: Date;

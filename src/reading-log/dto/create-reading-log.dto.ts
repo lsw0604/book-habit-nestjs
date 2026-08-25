@@ -1,14 +1,13 @@
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import {
   IsDate,
-  IsEnum,
   IsInt,
   IsNotEmpty,
   IsOptional,
   IsString,
+  MaxLength,
   Min,
 } from 'class-validator';
-import { ReadingMood } from '@prisma/client';
 import { Type } from 'class-transformer';
 
 export class CreateReadingLogDto {
@@ -54,13 +53,14 @@ export class CreateReadingLogDto {
   @IsNotEmpty()
   date: Date;
 
-  @ApiPropertyOptional({ description: '메모', maxLength: 500 })
+  @ApiPropertyOptional({
+    description: '메모 (읽은 내용, 그날의 감상/기분 등 자유 서술)',
+    maxLength: 500,
+    example: '집중이 잘 됐다. 3장이 특히 인상 깊었음.',
+  })
   @IsString()
   @IsOptional()
+  // DB 컬럼이 VarChar(500)이라 검증이 없으면 초과 입력이 DB 레벨에서 터진다.
+  @MaxLength(500, { message: '메모는 500자를 초과할 수 없습니다.' })
   memo?: string;
-
-  @ApiPropertyOptional({ description: '독서 중 기분', enum: ReadingMood })
-  @IsEnum(ReadingMood)
-  @IsOptional()
-  readingMood?: ReadingMood;
 }
