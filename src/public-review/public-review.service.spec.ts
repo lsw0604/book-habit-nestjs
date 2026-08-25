@@ -2,7 +2,7 @@ import { Test, TestingModule } from '@nestjs/testing';
 import { NotFoundException } from '@nestjs/common';
 import { PublicReviewService } from './public-review.service';
 import { PrismaService } from '../prisma/prisma.service';
-import { firstCallArg } from '../common/testing/test-helpers';
+import { callWhere, firstCallArg } from '../common/testing/test-helpers';
 
 function fakeReviewRow(overrides: Record<string, unknown> = {}) {
   return {
@@ -62,10 +62,9 @@ describe('PublicReviewService', () => {
 
       await service.findAll(1, undefined, { page: 1, limit: 10 });
 
-      const args = firstCallArg(prismaService.myBookReview.findMany) as {
-        where: Record<string, unknown>;
-      };
-      expect(args.where).toEqual({ isPublic: true });
+      expect(callWhere(prismaService.myBookReview.findMany)).toEqual({
+        isPublic: true,
+      });
     });
 
     it('isbn이 있으면 해당 책으로 필터링한다', async () => {
@@ -74,10 +73,7 @@ describe('PublicReviewService', () => {
 
       await service.findAll(1, '9788996991342', { page: 1, limit: 10 });
 
-      const args = firstCallArg(prismaService.myBookReview.findMany) as {
-        where: Record<string, unknown>;
-      };
-      expect(args.where).toEqual({
+      expect(callWhere(prismaService.myBookReview.findMany)).toEqual({
         isPublic: true,
         myBook: { book: { isbn: '9788996991342' } },
       });
@@ -116,11 +112,11 @@ describe('PublicReviewService', () => {
 
       await service.findOne(7, 42);
 
-      const args = firstCallArg(prismaService.myBookReview.findFirst) as {
-        where: Record<string, unknown>;
-      };
       // 남의 공개 리뷰도 볼 수 있어야 하므로 userId 스코프가 없어야 한다.
-      expect(args.where).toEqual({ id: 42, isPublic: true });
+      expect(callWhere(prismaService.myBookReview.findFirst)).toEqual({
+        id: 42,
+        isPublic: true,
+      });
     });
 
     it('비공개 리뷰는 소유자여도 조회되지 않는다 (NotFoundException)', async () => {

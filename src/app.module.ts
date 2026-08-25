@@ -1,8 +1,6 @@
 import { Module } from '@nestjs/common';
 import { ConfigModule } from '@nestjs/config';
 import { ThrottlerGuard, ThrottlerModule } from '@nestjs/throttler';
-import { AppController } from './app.controller';
-import { AppService } from './app.service';
 import { PrismaModule } from './prisma/prisma.module';
 import { BooksModule } from './books/books.module';
 import { APP_FILTER, APP_GUARD, APP_INTERCEPTOR } from '@nestjs/core';
@@ -47,12 +45,10 @@ import { envValidationSchema } from './config/env-validation.schema';
     ReadingGoalModule,
     HealthModule,
   ],
-  controllers: [AppController],
   providers: [
     { provide: APP_INTERCEPTOR, useClass: ResponseDtoInterceptor },
     { provide: APP_FILTER, useClass: ResponseExceptionFilter },
     { provide: APP_GUARD, useClass: ThrottlerGuard },
-    AppService,
   ],
 })
 export class AppModule {}
