@@ -44,6 +44,14 @@ function updateCallData(mockFn: jest.Mock): Prisma.MyBookUpdateInput {
   return (firstCallArg(mockFn) as { data: Prisma.MyBookUpdateInput }).data;
 }
 
+/**
+ * Prisma 목은 where를 실제로 평가하지 않으므로, 소유권 조건(userId)은
+ * 이렇게 인자를 직접 단언해야만 검증된다 (단언이 없으면 userId를 빼도 테스트가 통과함).
+ */
+function callWhere(mockFn: jest.Mock): Record<string, unknown> {
+  return (firstCallArg(mockFn) as { where: Record<string, unknown> }).where;
+}
+
 function createCallData(mockFn: jest.Mock): Prisma.MyBookCreateInput {
   return (firstCallArg(mockFn) as { data: Prisma.MyBookCreateInput }).data;
 }
@@ -93,6 +101,68 @@ describe('MyBookService', () => {
     }).compile();
 
     service = module.get(MyBookService);
+  });
+
+  // MyBook은 userId 직접 컬럼을 가지므로 조회/변이 모두 userId로 스코프되어야 한다.
+  // 이 조건이 빠지면 남의 서재 항목에 접근할 수 있고, assertOwnership은
+  // ReadingLog/MyBookReview/MyBookTag가 공유하는 단일 진실 공급원이라 파급이 크다.
+  describe('소유권 스코프 (where 절)', () => {
+    it('assertOwnership은 id와 userId를 함께 걸어 조회한다', async () => {
+      prismaService.myBook.findFirst.mockResolvedValue({
+        book: { totalPage: 300 },
+      });
+
+      await service.assertOwnership(7, 42);
+
+      expect(callWhere(prismaService.myBook.findFirst)).toEqual({
+        id: 42,
+        userId: 7,
+      });
+    });
+
+    it('findOne은 id와 userId를 함께 걸어 조회한다', async () => {
+      prismaService.myBook.findFirst.mockResolvedValue(fakeMyBookDetail());
+
+      await service.findOne(7, 42);
+
+      expect(callWhere(prismaService.myBook.findFirst)).toEqual({
+        id: 42,
+        userId: 7,
+      });
+    });
+
+    it('findOne은 소유하지 않은 항목이면 NotFoundException을 던진다', async () => {
+      prismaService.myBook.findFirst.mockResolvedValue(null);
+
+      await expect(service.findOne(7, 42)).rejects.toThrow(NotFoundException);
+    });
+
+    it('update는 선행 조회와 실제 update 양쪽 모두 userId로 스코프한다', async () => {
+      prismaService.myBook.findFirst.mockResolvedValue(fakeMyBookDetail());
+      prismaService.myBook.update.mockResolvedValue(fakeMyBookDetail());
+
+      await service.update(7, 42, { rating: 4 });
+
+      expect(callWhere(prismaService.myBook.findFirst)).toEqual({
+        id: 42,
+        userId: 7,
+      });
+      expect(callWhere(prismaService.myBook.update)).toEqual({
+        id: 42,
+        userId: 7,
+      });
+    });
+
+    it('remove는 userId로 스코프해 삭제한다', async () => {
+      prismaService.myBook.delete.mockResolvedValue(fakeMyBookDetail());
+
+      await service.remove(7, 42);
+
+      expect(callWhere(prismaService.myBook.delete)).toEqual({
+        id: 42,
+        userId: 7,
+      });
+    });
   });
 
   describe('update - 상태 전이', () => {
