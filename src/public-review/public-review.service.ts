@@ -70,6 +70,7 @@ export class PublicReviewService {
     return {
       ...rest,
       rating: myBook.rating,
+      book: myBook.book,
       author: myBook.user,
       isLiked: reviewLike.length > 0,
     };

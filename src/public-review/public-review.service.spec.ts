@@ -9,7 +9,15 @@ function fakeReviewRow(overrides: Record<string, unknown> = {}) {
     id: 1,
     review: '좋았다',
     createdAt: new Date('2026-01-01'),
-    myBook: { rating: 4, user: { id: 5, name: '홍길동', profile: null } },
+    myBook: {
+      rating: 4,
+      book: {
+        title: '미움받을 용기',
+        thumbnail: 'https://img/1.jpg',
+        isbn: '9788996991342',
+      },
+      user: { id: 5, name: '홍길동', profile: null },
+    },
     _count: { reviewLike: 0, reviewComment: 0 },
     reviewLike: [],
     ...overrides,
@@ -163,7 +171,7 @@ describe('PublicReviewService', () => {
       expect(result.items[0].rating).toBe(4);
     });
 
-    it('myBook에서 rating과 user만 select한다 (진도/로그는 공개 대상이 아님)', async () => {
+    it('myBook에서 공개 대상 필드만 select한다 (진도/로그는 제외)', async () => {
       prismaService.myBookReview.findMany.mockResolvedValue([]);
       prismaService.myBookReview.count.mockResolvedValue(0);
 
@@ -173,6 +181,7 @@ describe('PublicReviewService', () => {
         select: { myBook: { select: Record<string, unknown> } };
       };
       expect(Object.keys(args.select.myBook.select).sort()).toEqual([
+        'book',
         'rating',
         'user',
       ]);
@@ -186,6 +195,46 @@ describe('PublicReviewService', () => {
       const result = await service.findOne(1, 42);
 
       expect(result.rating).toBe(4);
+    });
+  });
+
+  // 피드에는 여러 책이 섞이므로 카드마다 어떤 책인지 보여줘야 한다.
+  describe('책 정보 노출', () => {
+    it('book을 최상위로 끌어올려 제목/썸네일/isbn을 노출한다', async () => {
+      prismaService.myBookReview.findMany.mockResolvedValue([fakeReviewRow()]);
+      prismaService.myBookReview.count.mockResolvedValue(1);
+
+      const result = await service.findAll(1, undefined, {
+        page: 1,
+        limit: 10,
+      });
+
+      expect(result.items[0].book).toEqual({
+        title: '미움받을 용기',
+        thumbnail: 'https://img/1.jpg',
+        isbn: '9788996991342',
+      });
+    });
+
+    it('내부 Book.id는 노출하지 않는다 (책 상세는 isbn으로 키잉됨)', async () => {
+      prismaService.myBookReview.findMany.mockResolvedValue([]);
+      prismaService.myBookReview.count.mockResolvedValue(0);
+
+      await service.findAll(1, undefined, { page: 1, limit: 10 });
+
+      const args = firstCallArg(prismaService.myBookReview.findMany) as {
+        select: { myBook: { select: { book: { select: object } } } };
+      };
+      expect(args.select.myBook.select.book.select).not.toHaveProperty('id');
+    });
+
+    it('단건 조회도 동일하게 book을 노출한다', async () => {
+      prismaService.myBookReview.findFirst.mockResolvedValue(fakeReviewRow());
+
+      const result = await service.findOne(1, 42);
+
+      expect(result.book.title).toBe('미움받을 용기');
+      expect(result.book.isbn).toBe('9788996991342');
     });
   });
 

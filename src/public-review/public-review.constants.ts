@@ -18,6 +18,10 @@ export const buildPublicReviewListSelect = (userId: number | undefined) =>
     myBook: {
       select: {
         rating: true,
+        // 피드는 여러 책이 섞여 있어 어떤 책의 한줄평인지 보여줘야 한다.
+        // isbn까지 담는 이유는 카드에서 책 상세로 이동하기 위함 - 책 상세는
+        // 내부 Book.id가 아니라 isbn으로 키잉된다 (Book.id는 어디서도 노출하지 않음).
+        book: { select: { title: true, thumbnail: true, isbn: true } },
         user: { select: { id: true, name: true, profile: true } },
       },
     },

@@ -2,6 +2,18 @@ import { ApiProperty } from '@nestjs/swagger';
 import { PaginationMeta, PaginationResponse } from '../../common/pagination';
 import { MyBookReviewCountDto } from '../../my-book-review/dto/my-book-review-response.dto';
 
+export class PublicReviewBookDto {
+  @ApiProperty({ description: '책 제목', example: '미움받을 용기' })
+  title: string;
+
+  @ApiProperty({ description: '썸네일 이미지 URL', nullable: true })
+  thumbnail: string | null;
+
+  // 책 상세 페이지는 내부 Book.id가 아니라 isbn으로 키잉된다.
+  @ApiProperty({ description: 'ISBN13', example: '9788996991342' })
+  isbn: string;
+}
+
 export class PublicReviewAuthorDto {
   @ApiProperty({ description: '작성자 User ID', example: 1 })
   id: number;
@@ -26,6 +38,9 @@ export class PublicReviewItemDto {
     example: 4,
   })
   rating: number;
+
+  @ApiProperty({ description: '책 정보', type: PublicReviewBookDto })
+  book: PublicReviewBookDto;
 
   @ApiProperty({ description: '생성 시각', type: Date })
   createdAt: Date;
