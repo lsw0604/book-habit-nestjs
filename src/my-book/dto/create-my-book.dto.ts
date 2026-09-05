@@ -1,23 +1,18 @@
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import { MyBookStatus } from '@prisma/client';
 import { Transform } from 'class-transformer';
-import {
-  IsEnum,
-  IsNotEmpty,
-  IsOptional,
-  IsString,
-  Matches,
-} from 'class-validator';
+import { IsEnum, IsOptional, IsString } from 'class-validator';
+import { normalizeIsbn13 } from '../../common';
 
 export class CreateMyBookDto {
   @ApiProperty({
-    description: 'ISBN (숫자 13자리, 하이픈 등 숫자가 아닌 문자는 자동 제거됨)',
+    description: 'ISBN (ISBN-10/13, 하이픈 허용 - ISBN-13으로 정규화됨)',
     example: '9788996991342',
   })
-  @IsString()
-  @IsNotEmpty({ message: 'ISBN은 필수 입력값입니다.' })
-  @Transform(({ value }) => String(value).replace(/[^0-9]/g, ''))
-  @Matches(/^\d{13}$/, { message: 'ISBN은 숫자 13자리여야 합니다.' })
+  @Transform(({ value }) => normalizeIsbn13(value))
+  @IsString({
+    message: '유효한 ISBN이 아닙니다. (ISBN-10 또는 ISBN-13)',
+  })
   isbn: string;
 
   @ApiPropertyOptional({
