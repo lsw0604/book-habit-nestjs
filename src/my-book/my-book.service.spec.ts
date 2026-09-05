@@ -123,6 +123,17 @@ describe('MyBookService', () => {
       await expect(service.findOne(7, 42)).rejects.toThrow(NotFoundException);
     });
 
+    it('findByIsbn은 userId와 book.isbn을 함께 걸어 조회한다', async () => {
+      prismaService.myBook.findFirst.mockResolvedValue(fakeMyBookDetail());
+
+      await service.findByIsbn(7, '9788996991342');
+
+      expect(callWhere(prismaService.myBook.findFirst)).toEqual({
+        userId: 7,
+        book: { isbn: '9788996991342' },
+      });
+    });
+
     it('update는 선행 조회와 실제 update 양쪽 모두 userId로 스코프한다', async () => {
       prismaService.myBook.findFirst.mockResolvedValue(fakeMyBookDetail());
       prismaService.myBook.update.mockResolvedValue(fakeMyBookDetail());
@@ -456,6 +467,27 @@ describe('MyBookService', () => {
       expect(callWhere(prismaService.myBook.count)).toEqual(
         callWhere(prismaService.myBook.findMany),
       );
+    });
+  });
+
+  describe('findByIsbn', () => {
+    it('서재에 없으면 NotFoundException이 아니라 null을 반환한다', async () => {
+      prismaService.myBook.findFirst.mockResolvedValue(null);
+
+      await expect(service.findByIsbn(7, '9788996991342')).resolves.toBeNull();
+    });
+
+    it('찾으면 findOne과 동일한 detail 형태로 반환한다', async () => {
+      prismaService.myBook.findFirst.mockResolvedValue(
+        fakeMyBookDetail({ review: { id: 3 }, _count: { readingLog: 2 } }),
+      );
+
+      const result = await service.findByIsbn(7, '9788996991342');
+
+      expect(result).toMatchObject({
+        id: 1,
+        _count: { readingLog: 2, review: 1 },
+      });
     });
   });
 
