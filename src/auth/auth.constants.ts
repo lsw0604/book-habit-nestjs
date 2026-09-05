@@ -9,6 +9,15 @@ export const AUTH_THROTTLE = { default: { limit: 5, ttl: 60000 } };
 // refresh_token 쿠키가 브라우저에 의해 전송되도록 범위를 좁히기 위함.
 export const REFRESH_TOKEN_COOKIE_PATH = '/api/auth';
 
+// 카카오 인가 요청(GET /api/auth/kakao) 때 발급해서 콜백에서 한 번만 대조하는
+// CSRF 방지용 state. sessionStorage 대신 httpOnly 쿠키에 담아 서버가 검증한다.
+// 경로를 카카오 라우트로 좁혀 두면(콜백 /api/auth/kakao/callback도 이 경로에
+// 매칭됨) 나머지 요청에는 실려 나가지 않고, 수명도 인가 페이지 왕복에 필요한
+// 만큼(5분)만 준다.
+export const KAKAO_OAUTH_STATE_COOKIE = 'kakao_oauth_state';
+export const KAKAO_OAUTH_STATE_COOKIE_PATH = '/api/auth/kakao';
+export const KAKAO_OAUTH_STATE_MAX_AGE_MS = 5 * 60 * 1000;
+
 const DURATION_UNIT_MS: Record<string, number> = {
   s: 1000,
   m: 60 * 1000,

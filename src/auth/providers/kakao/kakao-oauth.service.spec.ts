@@ -39,9 +39,15 @@ const TOKEN_RESPONSE: KakaoAccessTokenResponse = {
 describe('KakaoOAuthService', () => {
   let service: KakaoOAuthService;
   let httpService: { post: jest.Mock; get: jest.Mock };
+  // client_secret은 설정 여부가 곧 분기라, 테스트별로 갈아끼울 수 있게 가변으로 둔다.
+  let config: Record<string, string | undefined>;
 
   beforeEach(async () => {
     httpService = { post: jest.fn(), get: jest.fn() };
+    config = {
+      KAKAO_CLIENT_ID: 'fake-client-id',
+      KAKAO_CALLBACK_URL: 'https://api.example.com/api/auth/kakao/callback',
+    };
 
     const module: TestingModule = await Test.createTestingModule({
       providers: [
@@ -49,12 +55,32 @@ describe('KakaoOAuthService', () => {
         { provide: HttpService, useValue: httpService },
         {
           provide: ConfigService,
-          useValue: { getOrThrow: () => 'fake-client-id' },
+          useValue: {
+            get: (key: string) => config[key],
+            getOrThrow: (key: string) => config[key],
+          },
         },
       ],
     }).compile();
 
     service = module.get(KakaoOAuthService);
+  });
+
+  describe('buildAuthorizeUrl', () => {
+    // client_id/redirect_uri가 프론트 번들이 아니라 서버에서만 조립되는 게 이 설계의 핵심.
+    it('client_id/redirect_uri/state를 담은 카카오 인가 URL을 만든다', () => {
+      const url = new URL(service.buildAuthorizeUrl('state-uuid'));
+
+      expect(url.origin + url.pathname).toBe(
+        'https://kauth.kakao.com/oauth/authorize',
+      );
+      expect(url.searchParams.get('client_id')).toBe('fake-client-id');
+      expect(url.searchParams.get('redirect_uri')).toBe(
+        'https://api.example.com/api/auth/kakao/callback',
+      );
+      expect(url.searchParams.get('response_type')).toBe('code');
+      expect(url.searchParams.get('state')).toBe('state-uuid');
+    });
   });
 
   function mockHappyPath(userInfo = fakeUserInfo()) {
@@ -78,6 +104,31 @@ describe('KakaoOAuthService', () => {
       expect(params.get('client_id')).toBe('fake-client-id');
       expect(params.get('redirect_uri')).toBe('https://example.com/callback');
       expect(params.get('code')).toBe('auth-code');
+    });
+
+    // 콘솔에서 client_secret을 끈 앱에 빈 값을 실어 보내면 KOE010으로 거절당하므로,
+    // '설정 안 됨'과 '설정됨'이 서로 다른 요청 본문을 만들어야 한다.
+    it('KAKAO_CLIENT_SECRET이 없으면 client_secret을 보내지 않는다', async () => {
+      mockHappyPath();
+
+      await service.exchangeCodeForUserInfo('auth-code', 'https://cb');
+
+      const calls = httpService.post.mock.calls as unknown[][];
+      const [, body] = calls[0] as [string, string];
+      expect(new URLSearchParams(body).has('client_secret')).toBe(false);
+    });
+
+    it('KAKAO_CLIENT_SECRET이 설정돼 있으면 client_secret을 함께 보낸다', async () => {
+      config.KAKAO_CLIENT_SECRET = 'fake-client-secret';
+      mockHappyPath();
+
+      await service.exchangeCodeForUserInfo('auth-code', 'https://cb');
+
+      const calls = httpService.post.mock.calls as unknown[][];
+      const [, body] = calls[0] as [string, string];
+      expect(new URLSearchParams(body).get('client_secret')).toBe(
+        'fake-client-secret',
+      );
     });
 
     it('발급받은 access token을 Bearer로 사용자 정보 조회에 사용한다', async () => {
