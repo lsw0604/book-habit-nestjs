@@ -62,6 +62,13 @@ export class AuthService {
     };
   }
 
+  // 컨트롤러가 KakaoOAuthService를 직접 주입하지 않도록 위임만 한다 - 컨트롤러가
+  // 아는 provider는 계속 AuthService 하나뿐이어야 구글/네이버가 늘어도 라우트가
+  // provider 구현에 묶이지 않는다.
+  buildKakaoAuthorizeUrl(state: string): string {
+    return this.kakaoOAuthService.buildAuthorizeUrl(state);
+  }
+
   async kakaoCallback(code: string) {
     const redirectUri =
       this.configService.getOrThrow<string>('KAKAO_CALLBACK_URL');

@@ -25,8 +25,17 @@ export const envValidationSchema = Joi.object({
 
   CORS_ORIGINS: Joi.string().required(),
 
+  // OAuth 왕복이 끝난 뒤 브라우저를 되돌려 보낼 프론트 주소(단일 값).
+  // CORS_ORIGINS(허용 origin '목록')와는 용도가 다르므로 별도 변수로 둔다.
+  FRONTEND_URL: Joi.string().uri().required(),
+
   KAKAO_CLIENT_ID: Joi.string().required(),
-  KAKAO_CALLBACK_URL: Joi.string().required(),
+  // 이제 프론트 콜백 페이지가 아니라 백엔드 자신의
+  // GET /api/auth/kakao/callback 절대 URL이어야 한다(카카오 콘솔 등록값과 동일).
+  KAKAO_CALLBACK_URL: Joi.string().uri().required(),
+  // 카카오 콘솔에서 'client_secret 사용'을 켠 경우에만 필요함 - 끄면 토큰 요청에
+  // 아예 실어 보내지 않아야 하므로 optional.
+  KAKAO_CLIENT_SECRET: Joi.string().allow('').optional(),
 
   ALADIN_TTB_KEY: Joi.string().allow('').optional(),
   KAKAO_REST_API: Joi.string().allow('').optional(),

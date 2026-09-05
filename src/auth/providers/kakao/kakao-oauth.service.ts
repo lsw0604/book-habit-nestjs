@@ -16,6 +16,7 @@ import {
 @Injectable()
 export class KakaoOAuthService implements SocialOAuthProvider {
   private readonly logger = new Logger(KakaoOAuthService.name);
+  private readonly AUTHORIZE_URL = 'https://kauth.kakao.com/oauth/authorize';
   private readonly TOKEN_URL = 'https://kauth.kakao.com/oauth/token';
   private readonly ME_URL = 'https://kapi.kakao.com/v2/user/me';
 
@@ -23,6 +24,19 @@ export class KakaoOAuthService implements SocialOAuthProvider {
     private readonly httpService: HttpService,
     private readonly configService: ConfigService,
   ) {}
+
+  // state는 호출자(AuthController)가 만들어 쿠키에도 심는 값을 그대로 받는다 -
+  // 생성과 검증이 한 곳(컨트롤러)에 모여 있어야 대조가 성립하므로 여기서 만들지 않는다.
+  buildAuthorizeUrl(state: string): string {
+    const params = new URLSearchParams({
+      client_id: this.configService.getOrThrow<string>('KAKAO_CLIENT_ID'),
+      redirect_uri: this.configService.getOrThrow<string>('KAKAO_CALLBACK_URL'),
+      response_type: 'code',
+      state,
+    });
+
+    return `${this.AUTHORIZE_URL}?${params.toString()}`;
+  }
 
   async exchangeCodeForUserInfo(
     code: string,
@@ -92,6 +106,13 @@ export class KakaoOAuthService implements SocialOAuthProvider {
     );
     params.append('redirect_uri', redirectUri);
     params.append('code', code);
+
+    // 카카오 콘솔에서 client_secret을 켠 앱만 이 값을 요구하고, 끈 앱에 빈 값을
+    // 실어 보내면 오히려 KOE010으로 거절당하므로 설정돼 있을 때만 추가한다.
+    const clientSecret = this.configService.get<string>('KAKAO_CLIENT_SECRET');
+    if (clientSecret) {
+      params.append('client_secret', clientSecret);
+    }
 
     return params.toString();
   }
