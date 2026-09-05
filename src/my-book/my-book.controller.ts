@@ -15,6 +15,7 @@ import { MyBookService } from './my-book.service';
 import { CreateMyBookDto } from './dto/create-my-book.dto';
 import { UpdateMyBookDto } from './dto/update-my-book.dto';
 import { FindMyBookQueryDto } from './dto/find-my-book.query.dto';
+import { MyBookIsbnParamDto } from './dto/my-book-isbn.param.dto';
 import {
   MyBookListResponseDto,
   MyBookResponseDto,
@@ -60,6 +61,19 @@ export class MyBookController {
       hasReview,
       order,
     });
+  }
+
+  // ':id'(ParseIntPipe)보다 세그먼트가 하나 더 많아 라우트가 겹치지 않는다.
+  @Get('by-isbn/:isbn')
+  @ApiOperation({ summary: 'ISBN으로 내 서재 등록 여부 조회' })
+  @ApiResponseDto(MyBookResponseDto, {
+    description: '해당 책이 서재에 없으면 data는 null',
+  })
+  findByIsbn(
+    @CurrentUser() user: JwtPayload,
+    @Param() { isbn }: MyBookIsbnParamDto,
+  ) {
+    return this.myBookService.findByIsbn(user.sub, isbn);
   }
 
   @Get(':id')

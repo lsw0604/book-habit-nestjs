@@ -186,6 +186,27 @@ export class MyBookService {
   }
 
   /**
+   * ISBN으로 "이 책이 내 서재에 있는지"를 조회한다. 서재에 없으면 null.
+   * Book row 자체가 없으면 그 책을 참조하는 MyBook도 존재할 수 없으므로,
+   * book 관계를 타고 한 번에 거른다 (Book 선조회 + MyBook 재조회로 나눌 이유가 없다).
+   * 여기서 알라딘을 호출해 Book을 적재하지 않는 것도 같은 이유 - 적재해봐야
+   * 응답은 여전히 null이고, 조회 경로에 외부 API 의존성과 쓰기 부작용만 생긴다.
+   * (Book 적재 시점은 create -> BooksService.findOrCreate 하나로 유지한다.)
+   *
+   * 응답 shape는 findOne/update와 동일한 detail이다. 같은 MyBook을 id로 찾느냐
+   * isbn으로 찾느냐의 차이일 뿐이라 표현이 달라질 이유가 없고, 덕분에 FE가
+   * update 응답을 이 조회의 캐시에 그대로 덮어쓸 수 있다.
+   */
+  async findByIsbn(userId: number, isbn: string) {
+    const myBook = await this.prismaService.myBook.findFirst({
+      where: { userId, book: { isbn } },
+      include: MyBookDetailInclude,
+    });
+
+    return myBook ? this.toDetailResponse(myBook) : null;
+  }
+
+  /**
    * MyBook이 userId 소유인지 확인한다. ReadingLog/MyBookReview/MyBookTag처럼
    * MyBook에 종속된 리소스를 만들기 전에 공통으로 호출하는 용도 - MyBook
    * 소유권 규칙은 이 애그리거트를 소유한 MyBookService가 유일한 진실 공급원이어야
