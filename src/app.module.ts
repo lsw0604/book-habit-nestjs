@@ -14,6 +14,7 @@ import { ReviewLikeModule } from './review-like/review-like.module';
 import { ReviewCommentModule } from './review-comment/review-comment.module';
 import { PublicReviewModule } from './public-review/public-review.module';
 import { TagModule } from './tag/tag.module';
+import { PublicTagModule } from './public-tag/public-tag.module';
 import { MyBookTagModule } from './my-book-tag/my-book-tag.module';
 import { QuoteModule } from './quote/quote.module';
 import { ReadingGoalModule } from './reading-goal/reading-goal.module';
@@ -40,6 +41,7 @@ import { envValidationSchema } from './config/env-validation.schema';
     ReviewCommentModule,
     PublicReviewModule,
     TagModule,
+    PublicTagModule,
     MyBookTagModule,
     QuoteModule,
     ReadingGoalModule,
