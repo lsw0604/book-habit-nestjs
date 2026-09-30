@@ -18,22 +18,8 @@ export const KAKAO_OAUTH_STATE_COOKIE = 'kakao_oauth_state';
 export const KAKAO_OAUTH_STATE_COOKIE_PATH = '/api/auth/kakao';
 export const KAKAO_OAUTH_STATE_MAX_AGE_MS = 5 * 60 * 1000;
 
-const DURATION_UNIT_MS: Record<string, number> = {
-  s: 1000,
-  m: 60 * 1000,
-  h: 60 * 60 * 1000,
-  d: 24 * 60 * 60 * 1000,
-};
-
-// JWT_*_EXPIRES_IN 값('15m', '7d' 등)을 쿠키 maxAge(ms)로 재사용하기 위한 변환.
-// @nestjs/jwt가 받는 형식의 부분집합(초/분/시/일)만 지원함.
-export function parseExpiresInMs(expiresIn: string): number {
-  const match = /^(\d+)(s|m|h|d)$/.exec(expiresIn);
-
-  if (!match) {
-    throw new Error(`지원하지 않는 만료 시간 형식입니다: ${expiresIn}`);
-  }
-
-  const [, value, unit] = match;
-  return Number(value) * DURATION_UNIT_MS[unit];
-}
+// access_token/refresh_token 쿠키의 브라우저 보관 기간(maxAge). JWT 자체의 exp
+// (JWT_ACCESS_EXPIRES_IN/JWT_REFRESH_EXPIRES_IN)와는 의도적으로 분리되어 있음 -
+// access token은 exp가 지나면 서버가 어차피 401로 거부하므로, 쿠키 수명을 늘려도
+// 보안에 영향은 없고 두 쿠키가 항상 같은 기간(7일) 동안 브라우저에 남아있게 됨.
+export const AUTH_COOKIE_MAX_AGE_MS = 7 * 24 * 60 * 60 * 1000;
