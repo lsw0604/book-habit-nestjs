@@ -2,7 +2,7 @@ import { Test, TestingModule } from '@nestjs/testing';
 import { NotFoundException } from '@nestjs/common';
 import { BooksService } from './books.service';
 import { PrismaService } from '../prisma/prisma.service';
-import { AladinBookSearchService } from './providers';
+import { BookLookupService } from './book-lookup.service';
 import { createPrismaError } from '../common/testing/test-helpers';
 
 describe('BooksService', () => {
@@ -10,22 +10,19 @@ describe('BooksService', () => {
   let prismaService: {
     book: { findUnique: jest.Mock; upsert: jest.Mock };
   };
-  let aladinBookSearchService: { getByIsbn: jest.Mock };
+  let bookLookupService: { getByIsbn: jest.Mock };
 
   beforeEach(async () => {
     prismaService = {
       book: { findUnique: jest.fn(), upsert: jest.fn() },
     };
-    aladinBookSearchService = { getByIsbn: jest.fn() };
+    bookLookupService = { getByIsbn: jest.fn() };
 
     const module: TestingModule = await Test.createTestingModule({
       providers: [
         BooksService,
         { provide: PrismaService, useValue: prismaService },
-        {
-          provide: AladinBookSearchService,
-          useValue: aladinBookSearchService,
-        },
+        { provide: BookLookupService, useValue: bookLookupService },
       ],
     }).compile();
 
@@ -39,12 +36,12 @@ describe('BooksService', () => {
     const result = await service.findOrCreate('9788996991342');
 
     expect(result).toBe(local);
-    expect(aladinBookSearchService.getByIsbn).not.toHaveBeenCalled();
+    expect(bookLookupService.getByIsbn).not.toHaveBeenCalled();
   });
 
   it('로컬에 없으면 외부 API로 조회 후 upsert해서 반환한다', async () => {
     prismaService.book.findUnique.mockResolvedValue(null);
-    aladinBookSearchService.getByIsbn.mockResolvedValue({
+    bookLookupService.getByIsbn.mockResolvedValue({
       isbn: '9788996991342',
       title: '미움받을 용기',
     });
@@ -62,12 +59,9 @@ describe('BooksService', () => {
     });
   });
 
-  it('외부 API 응답에 isbn이 없으면 NotFoundException을 던진다', async () => {
+  it('외부 조회에서 못 찾으면 NotFoundException을 전파하고 저장하지 않는다', async () => {
     prismaService.book.findUnique.mockResolvedValue(null);
-    aladinBookSearchService.getByIsbn.mockResolvedValue({
-      isbn: '',
-      title: '알 수 없음',
-    });
+    bookLookupService.getByIsbn.mockRejectedValue(new NotFoundException());
 
     await expect(service.findOrCreate('0000000000000')).rejects.toThrow(
       NotFoundException,
@@ -79,7 +73,7 @@ describe('BooksService', () => {
     prismaService.book.findUnique
       .mockResolvedValueOnce(null)
       .mockResolvedValueOnce({ id: 1, isbn: '9788996991342' });
-    aladinBookSearchService.getByIsbn.mockResolvedValue({
+    bookLookupService.getByIsbn.mockResolvedValue({
       isbn: '9788996991342',
       title: '미움받을 용기',
     });
@@ -92,7 +86,7 @@ describe('BooksService', () => {
 
   it('P2002가 아닌 다른 에러는 그대로 전파한다', async () => {
     prismaService.book.findUnique.mockResolvedValue(null);
-    aladinBookSearchService.getByIsbn.mockResolvedValue({
+    bookLookupService.getByIsbn.mockResolvedValue({
       isbn: '9788996991342',
       title: '미움받을 용기',
     });
@@ -131,7 +125,7 @@ describe('BooksService', () => {
       expect(prismaService.book.findUnique).toHaveBeenCalledWith({
         where: { isbn: '9788996991342' },
       });
-      expect(aladinBookSearchService.getByIsbn).not.toHaveBeenCalled();
+      expect(bookLookupService.getByIsbn).not.toHaveBeenCalled();
       expect(result).toMatchObject({
         isbn: '9788996991342',
         title: '미움받을 용기',
@@ -141,7 +135,7 @@ describe('BooksService', () => {
 
     it('DB에 없으면 외부에서 조회해 응답하되 저장하지는 않는다', async () => {
       prismaService.book.findUnique.mockResolvedValue(null);
-      aladinBookSearchService.getByIsbn.mockResolvedValue({
+      bookLookupService.getByIsbn.mockResolvedValue({
         isbn: '9788996991342',
         title: '미움받을 용기',
         authors: ['기시미 이치로'],
@@ -161,7 +155,7 @@ describe('BooksService', () => {
 
     it('DB에도 없고 외부에서도 못 찾으면 NotFoundException을 던진다', async () => {
       prismaService.book.findUnique.mockResolvedValue(null);
-      aladinBookSearchService.getByIsbn.mockResolvedValue({ isbn: '' });
+      bookLookupService.getByIsbn.mockRejectedValue(new NotFoundException());
 
       await expect(service.findDetailByIsbn('0000000000000')).rejects.toThrow(
         NotFoundException,

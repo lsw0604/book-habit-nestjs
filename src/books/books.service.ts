@@ -1,15 +1,15 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import { Injectable } from '@nestjs/common';
 import { Prisma } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
 import { BookDetailResDto } from './dto/book-detail-res.dto';
 import { BookLookupResDto } from './dto/book-lookup-res.dto';
-import { AladinBookSearchService } from './providers';
+import { BookLookupService } from './book-lookup.service';
 
 @Injectable()
 export class BooksService {
   constructor(
     private readonly prisma: PrismaService,
-    private readonly aladinBookSearchService: AladinBookSearchService,
+    private readonly bookLookupService: BookLookupService,
   ) {}
 
   /**
@@ -57,14 +57,10 @@ export class BooksService {
   }
 
   /**
-   * 외부 API 조회의 유일한 진입점(서재 등록/상세 조회 공용).
-   * 알라딘 → BookLookupService 전환 시 여기만 바꾸면 된다.
+   * 외부 API 조회의 유일한 진입점(서재 등록/상세 조회 공용). 공급원을 바꿀 때 여기만 바꾼다.
+   * 못 찾으면 BookLookupService가 NotFoundException을 던진다.
    */
-  private async lookup(isbn: string): Promise<BookLookupResDto> {
-    const dto = await this.aladinBookSearchService.getByIsbn(isbn);
-    if (!dto.isbn) {
-      throw new NotFoundException('해당 ISBN을 가진 책을 찾을 수 없습니다.');
-    }
-    return dto;
+  private lookup(isbn: string): Promise<BookLookupResDto> {
+    return this.bookLookupService.getByIsbn(isbn);
   }
 }
