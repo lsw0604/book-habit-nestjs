@@ -14,3 +14,16 @@ export function assertWithinTotalPage(
     throw new BadRequestException(message);
   }
 }
+
+/**
+ * 이 서재 항목에서 실제로 쓰는 총 페이지 수. 사용자가 직접 입력한 MyBook.totalPage가
+ * 있으면 그 값, 없으면 Book.totalPage(외부 API 값)를 쓴다.
+ * 진행률 분모와 페이지 상한 검증은 모두 이 규칙을 따라야 한다 - 호출부마다
+ * book.totalPage를 직접 읽으면 사용자가 보정한 값이 무시된다.
+ */
+export function resolveTotalPage(myBook: {
+  totalPage: number | null;
+  book: { totalPage: number | null };
+}): number | null {
+  return myBook.totalPage ?? myBook.book.totalPage;
+}

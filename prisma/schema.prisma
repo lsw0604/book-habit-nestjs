@@ -72,6 +72,10 @@ model MyBook {
   rating      Int          @default(0)
   status      MyBookStatus @default(WANT_TO_READ)
   currentPage Int          @default(0)
+  // 사용자가 직접 입력한 이 책의 총 페이지 수. null이면 Book.totalPage를 쓴다.
+  // 외부 API에 페이지 수가 없는 책(오래된 책 등)과, 전자책/판본처럼 같은 ISBN이라도
+  // 쪽수가 다른 경우를 사용자가 보정하기 위함 (resolveTotalPage 참고).
+  totalPage   Int?
   readCount   Int          @default(0)
   startedAt   DateTime? // 처음 CURRENTLY_READING으로 전환된 시각
   finishedAt  DateTime? // 가장 최근 READ로 전환된 시각
@@ -149,23 +153,23 @@ model MyBookTag {
 // 독서 세션 기록. 이름을 MyBookHistory -> ReadingLog로 변경함
 // ("History"는 감사로그처럼 읽히는데, 실제로는 습관 트래킹의 핵심 데이터라서)
 model ReadingLog {
-  id             Int          @id @default(autoincrement())
+  id             Int      @id @default(autoincrement())
   myBookId       Int
   startPage      Int
   endPage        Int
   startTime      DateTime
   endTime        DateTime
   readingMinutes Int
-  date           DateTime     @db.Date
+  date           DateTime @db.Date
   // 그날의 감상/기분도 여기에 자유롭게 적는다. 예전엔 readingMood(enum)를 따로 뒀지만
   // 감정은 열거로 덮을 수 없어(값이 12개까지 늘고 결국 nullable이 됨) 자유 서술로 통합함.
   // 다시 구조화하려면 "집계해서 보여줄 화면"이 먼저 있어야 한다 - 이전엔 저장만 하고
   // 어디서도 필터/집계하지 않아 입력 마찰만 남았다.
-  memo           String?      @db.VarChar(500)
+  memo           String?  @db.VarChar(500)
   quote          Quote[]
-  createdAt      DateTime     @default(now())
-  updatedAt      DateTime     @updatedAt
-  myBook         MyBook       @relation(fields: [myBookId], references: [id], onDelete: Cascade)
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+  myBook         MyBook   @relation(fields: [myBookId], references: [id], onDelete: Cascade)
 
   @@index([myBookId, date])
 }

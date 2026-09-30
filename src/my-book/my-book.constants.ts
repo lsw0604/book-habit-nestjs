@@ -34,6 +34,7 @@ export const MyBooksListSelect = {
   status: true,
   rating: true,
   currentPage: true, // UI 진행률용
+  totalPage: true, // UI 진행률용 - 사용자가 직접 입력한 값 (없으면 book.totalPage)
   readCount: true,
   book: {
     select: {
