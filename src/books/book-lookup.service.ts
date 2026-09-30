@@ -64,7 +64,7 @@ export class BookLookupService {
       ...base,
       subTitle: base.subTitle ?? supplement.subTitle,
       totalPage: base.totalPage ?? supplement.totalPage,
-      // 카카오 소개는 200자 안팎에서 잘려 있으므로, NL에 전문이 있으면 그쪽을 쓴다.
+      // 카카오 소개는 250자 안팎에서 잘린 미리보기이므로, NL에 전문이 있으면 그쪽을 쓴다.
       description: supplement.description ?? base.description,
     };
   }

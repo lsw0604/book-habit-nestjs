@@ -21,7 +21,7 @@ export class KakaoLookupResDto extends BookLookupResDto {
       // "2014-11-17T00:00:00.000+09:00"(KST 자정)을 new Date()로 바꾸면 UTC로
       // 11월 16일이 되어 @db.Date에 하루 전으로 저장된다. 날짜 부분만 쓴다.
       pubDate: parseUtcDate(doc.datetime?.slice(0, 10)),
-      // 카카오는 소개를 200자 안팎에서 잘라 준다. BookLookupService가 NL 전문으로 대체한다.
+      // 카카오는 소개를 250자 안팎에서 잘라 준다(검색 결과 미리보기라 늘리는 옵션이 없다). BookLookupService가 NL 전문으로 대체한다.
       description: doc.contents || null,
       thumbnail,
       coverImage: KakaoLookupResDto.toOriginalCover(thumbnail),
