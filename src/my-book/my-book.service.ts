@@ -10,6 +10,7 @@ import {
   assertWithinTotalPage,
   PaginationUtil,
   PrismaErrorUtil,
+  resolveTotalPage,
 } from '../common';
 import { CreateMyBookDto } from './dto/create-my-book.dto';
 import { UpdateMyBookDto } from './dto/update-my-book.dto';
@@ -189,7 +190,7 @@ export class MyBookService {
    * ISBN으로 "이 책이 내 서재에 있는지"를 조회한다. 서재에 없으면 null.
    * Book row 자체가 없으면 그 책을 참조하는 MyBook도 존재할 수 없으므로,
    * book 관계를 타고 한 번에 거른다 (Book 선조회 + MyBook 재조회로 나눌 이유가 없다).
-   * 여기서 알라딘을 호출해 Book을 적재하지 않는 것도 같은 이유 - 적재해봐야
+   * 여기서 외부 API를 호출해 Book을 적재하지 않는 것도 같은 이유 - 적재해봐야
    * 응답은 여전히 null이고, 조회 경로에 외부 API 의존성과 쓰기 부작용만 생긴다.
    * (Book 적재 시점은 create -> BooksService.findOrCreate 하나로 유지한다.)
    *
@@ -215,7 +216,9 @@ export class MyBookService {
   async assertOwnership(userId: number, myBookId: number) {
     const myBook = await this.prismaService.myBook.findFirst({
       where: { id: myBookId, userId },
-      select: { book: { select: { totalPage: true } } },
+      // 호출부(ReadingLogService)가 resolveTotalPage로 페이지 상한을 검증할 수 있게
+      // 사용자 입력값과 책 정보 값을 함께 가져온다.
+      select: { totalPage: true, book: { select: { totalPage: true } } },
     });
 
     if (!myBook) {
@@ -235,13 +238,7 @@ export class MyBookService {
       throw new NotFoundException('서재 항목을 찾을 수 없습니다.');
     }
 
-    if (updateMyBookDto.currentPage !== undefined) {
-      assertWithinTotalPage(
-        updateMyBookDto.currentPage,
-        existing.book.totalPage,
-        '현재 페이지가 총 페이지 수를 초과할 수 없습니다.',
-      );
-    }
+    await this.assertPageConsistency(id, existing, updateMyBookDto);
 
     const statusPatch = this.buildStatusTransition(
       existing,
@@ -258,11 +255,62 @@ export class MyBookService {
         ...(updateMyBookDto.currentPage !== undefined && {
           currentPage: updateMyBookDto.currentPage,
         }),
+        ...(updateMyBookDto.totalPage !== undefined && {
+          totalPage: updateMyBookDto.totalPage,
+        }),
       },
       include: MyBookDetailInclude,
     });
 
     return this.toDetailResponse(updated);
+  }
+
+  /**
+   * 수정 후의 현재 페이지/총 페이지 수가 서로 맞는지 검증한다.
+   * - currentPage만 바꿔도, totalPage만 바꿔도 "현재 페이지 <= 총 페이지 수"가 깨질 수 있어
+   *   둘 중 하나라도 바뀌면 수정 후 값끼리 비교한다.
+   * - totalPage를 바꿀 때는(직접 입력 해제로 Book 값으로 돌아가는 경우 포함) 이미 기록한
+   *   독서 기록의 종료 페이지도 넘지 않아야 한다. 넘으면 그 기록을 다시 수정할 때부터
+   *   검증에 걸려 수정할 수 없는 기록이 되기 때문이다.
+   */
+  private async assertPageConsistency(
+    myBookId: number,
+    existing: {
+      currentPage: number;
+      totalPage: number | null;
+      book: { totalPage: number | null };
+    },
+    dto: UpdateMyBookDto,
+  ) {
+    if (dto.currentPage === undefined && dto.totalPage === undefined) return;
+
+    const nextTotalPage = resolveTotalPage({
+      totalPage:
+        dto.totalPage !== undefined ? dto.totalPage : existing.totalPage,
+      book: existing.book,
+    });
+
+    assertWithinTotalPage(
+      dto.currentPage ?? existing.currentPage,
+      nextTotalPage,
+      dto.currentPage !== undefined
+        ? '현재 페이지가 총 페이지 수를 초과할 수 없습니다.'
+        : '총 페이지 수는 현재 페이지보다 작을 수 없습니다.',
+    );
+
+    if (dto.totalPage === undefined || nextTotalPage === null) return;
+
+    const { _max } = await this.prismaService.readingLog.aggregate({
+      where: { myBookId },
+      _max: { endPage: true },
+    });
+    if (_max.endPage !== null) {
+      assertWithinTotalPage(
+        _max.endPage,
+        nextTotalPage,
+        `총 페이지 수는 이미 기록한 독서 기록의 종료 페이지(${_max.endPage})보다 작을 수 없습니다.`,
+      );
+    }
   }
 
   /**
