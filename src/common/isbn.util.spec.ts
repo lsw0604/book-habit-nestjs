@@ -27,7 +27,8 @@ describe('normalizeIsbn13', () => {
   });
 
   // 카카오 검색 응답은 ISBN10과 ISBN13을 공백으로 이어서 주는 경우가 있다.
-  // 서버는 이 형태를 해석하지 않고 거부한다 (클라이언트가 13자리로 맞춰 보냄).
+  // 이 형태는 카카오 provider의 parseKakaoIdentifier가 해석해 검색 응답의 isbn을
+  // ISBN-13으로 내려주므로, 사용자 입력을 검증하는 여기서는 엄격하게 거부한다.
   it('ISBN10과 ISBN13이 공백으로 이어진 카카오 형식은 null이다', () => {
     expect(normalizeIsbn13('8996991341 9788996991342')).toBeNull();
   });

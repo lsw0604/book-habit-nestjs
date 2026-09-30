@@ -132,6 +132,46 @@ describe('KakaoBookSearchService', () => {
       expect(result.meta.hasNextPage).toBe(true);
     });
 
+    it('isbn을 정규화된 ISBN-13과 식별자 종류로, datetime을 날짜 문자열로 바꿔 보낸다', async () => {
+      httpService.get.mockReturnValue(
+        of(fakeAxiosResponse(fakeResponse([fakeDocument()]))),
+      );
+
+      const [item] = (await service.search({ query: '용기' })).items;
+
+      expect(item.isbn).toBe('9788996991342');
+      expect(item.identifierType).toBe('ISBN');
+      expect(item.pubDate).toBe('2014-11-17');
+    });
+
+    it('잡지(ISSN)는 목록에서 빼지 않고 isbn null로 표시만 한다', async () => {
+      httpService.get.mockReturnValue(
+        of(
+          fakeAxiosResponse(
+            fakeResponse([
+              fakeDocument(),
+              fakeDocument({ isbn: '1228402000 9771228402006' }),
+            ]),
+          ),
+        ),
+      );
+
+      const { items } = await service.search({ query: '씨네21' });
+
+      expect(items).toHaveLength(2);
+      expect(items[1]).toMatchObject({ isbn: null, identifierType: 'ISSN' });
+    });
+
+    it('datetime이 비어 있으면 pubDate는 null이다', async () => {
+      httpService.get.mockReturnValue(
+        of(fakeAxiosResponse(fakeResponse([fakeDocument({ datetime: '' })]))),
+      );
+
+      const [item] = (await service.search({ query: '용기' })).items;
+
+      expect(item.pubDate).toBeNull();
+    });
+
     it('빈 결과도 정상 처리한다', async () => {
       httpService.get.mockReturnValue(
         of(fakeAxiosResponse(fakeResponse([], 0))),
