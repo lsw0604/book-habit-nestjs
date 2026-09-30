@@ -1,5 +1,6 @@
 import { ApiProperty } from '@nestjs/swagger';
 import { PaginationMeta, PaginationResponse } from '../../common/pagination';
+import { BookThumbnailApiProperty } from '../../books/dto/book-image.api-property';
 
 export class MyBookReviewCountDto {
   @ApiProperty({ description: '좋아요 수', example: 3 })
@@ -36,7 +37,7 @@ export class MyBookReviewListBookDto {
   @ApiProperty({ description: '책 제목', example: '미움받을 용기' })
   title: string;
 
-  @ApiProperty({ description: '썸네일 이미지 URL', nullable: true })
+  @ApiProperty(BookThumbnailApiProperty)
   thumbnail: string | null;
 }
 

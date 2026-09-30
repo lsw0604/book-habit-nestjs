@@ -1,6 +1,10 @@
 import { ApiProperty } from '@nestjs/swagger';
 import { MyBookStatus } from '@prisma/client';
 import { PaginationMeta, PaginationResponse } from '../../common/pagination';
+import {
+  BookCoverImageApiProperty,
+  BookThumbnailApiProperty,
+} from '../../books/dto/book-image.api-property';
 
 export class MyBookDetailBookDto {
   @ApiProperty({ description: '책 제목', example: '미움받을 용기' })
@@ -29,10 +33,10 @@ export class MyBookDetailBookDto {
   @ApiProperty({ description: '출판사', nullable: true })
   publisher: string | null;
 
-  @ApiProperty({ description: '썸네일 이미지 URL', nullable: true })
+  @ApiProperty(BookThumbnailApiProperty)
   thumbnail: string | null;
 
-  @ApiProperty({ description: '커버 이미지 URL', nullable: true })
+  @ApiProperty(BookCoverImageApiProperty)
   coverImage: string | null;
 
   @ApiProperty({ description: '책 설명', nullable: true })
@@ -52,7 +56,7 @@ export class MyBookListItemBookDto {
   @ApiProperty({ description: '책 제목', example: '미움받을 용기' })
   title: string;
 
-  @ApiProperty({ description: '썸네일 이미지 URL', nullable: true })
+  @ApiProperty(BookThumbnailApiProperty)
   thumbnail: string | null;
 
   @ApiProperty({ description: '총 페이지 수 (진행률 계산용)', nullable: true })
