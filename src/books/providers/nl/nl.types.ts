@@ -39,6 +39,11 @@ export type NlDocumentRaw = {
   INPUT_DATE: string;
   UPDATE_DATE: string;
   BOOK_INTRODUCTION?: string;
+  BOOK_TB_CNT?: string;
+  BOOK_SUMMARY?: string;
+  REAL_PUBLISH_DATE?: string;
+  FORM_DETAIL?: string;
+  BIB_YN?: string;
   DEPOSIT_YN?: string;
   REAL_PRICE?: string;
   RELATED_ISBN?: string;

@@ -108,8 +108,15 @@ describe('NlBookSearchService', () => {
   });
 
   it('docs가 없는 에러 응답(인증키 오류 등)은 BadGatewayException으로 변환한다', async () => {
+    // 2026-09-30 잘못된 인증키로 호출했을 때의 실제 응답(HTTP 200).
     httpService.get.mockReturnValue(
-      of(fakeAxiosResponse({ RESULT: 'ERROR', ERR_CODE: '011' })),
+      of(
+        fakeAxiosResponse({
+          RESULT: 'ERROR',
+          ERR_CODE: '011',
+          ERR_MESSAGE: '유효하지 않은 인증키 값입니다.',
+        }),
+      ),
     );
 
     await expect(service.getByIsbn('9788996991342')).rejects.toThrow(
