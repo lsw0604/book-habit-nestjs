@@ -80,6 +80,15 @@ export class MyBookResponseDto {
   @ApiProperty({ description: '현재 읽은 페이지', example: 120 })
   currentPage: number;
 
+  @ApiProperty({
+    description:
+      '사용자가 직접 입력한 총 페이지 수. null이면 book.totalPage를 쓴다 (진행률 분모 = totalPage ?? book.totalPage)',
+    type: Number,
+    nullable: true,
+    example: null,
+  })
+  totalPage: number | null;
+
   @ApiProperty({ description: '완독 횟수', example: 0 })
   readCount: number;
 
@@ -129,6 +138,15 @@ export class MyBookListItemDto {
 
   @ApiProperty({ description: '현재 읽은 페이지 (UI 진행률용)', example: 120 })
   currentPage: number;
+
+  @ApiProperty({
+    description:
+      '사용자가 직접 입력한 총 페이지 수. null이면 book.totalPage를 쓴다 (진행률 분모 = totalPage ?? book.totalPage)',
+    type: Number,
+    nullable: true,
+    example: null,
+  })
+  totalPage: number | null;
 
   @ApiProperty({ description: '완독 횟수', example: 0 })
   readCount: number;

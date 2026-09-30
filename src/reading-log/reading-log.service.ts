@@ -8,7 +8,11 @@ import { CreateReadingLogDto } from './dto/create-reading-log.dto';
 import { UpdateReadingLogDto } from './dto/update-reading-log.dto';
 import { PrismaService } from '../prisma/prisma.service';
 import { MyBookService } from '../my-book/my-book.service';
-import { assertWithinTotalPage, PaginationUtil } from '../common';
+import {
+  assertWithinTotalPage,
+  PaginationUtil,
+  resolveTotalPage,
+} from '../common';
 import { ReadingLogListSelect } from './reading-log.constants';
 import { ReadingLogListItem } from './reading-log.types';
 
@@ -19,13 +23,14 @@ export class ReadingLogService {
     private readonly myBookService: MyBookService,
   ) {}
 
-  private async getBookTotalPage(myBookId: number) {
+  /** 사용자가 직접 입력한 값이 있으면 그 값, 없으면 책 정보의 값 (resolveTotalPage). */
+  private async getTotalPage(myBookId: number) {
     const myBook = await this.prismaService.myBook.findUniqueOrThrow({
       where: { id: myBookId },
-      select: { book: { select: { totalPage: true } } },
+      select: { totalPage: true, book: { select: { totalPage: true } } },
     });
 
-    return myBook.book.totalPage;
+    return resolveTotalPage(myBook);
   }
 
   /**
@@ -91,7 +96,7 @@ export class ReadingLogService {
     return Math.round((endTime.getTime() - startTime.getTime()) / 60_000);
   }
 
-  /** startPage/endPage, startTime/endTime의 논리적 모순과 book.totalPage 초과 여부를 검증한다. */
+  /** startPage/endPage, startTime/endTime의 논리적 모순과 총 페이지 수(resolveTotalPage) 초과 여부를 검증한다. */
   private assertLogConsistency(
     input: {
       startPage: number;
@@ -125,7 +130,7 @@ export class ReadingLogService {
       userId,
       dto.myBookId,
     );
-    this.assertLogConsistency(dto, myBook.book.totalPage);
+    this.assertLogConsistency(dto, resolveTotalPage(myBook));
 
     const { date, ...rest } = dto;
     const data = {
@@ -220,7 +225,7 @@ export class ReadingLogService {
   async update(userId: number, id: number, dto: UpdateReadingLogDto) {
     const existing = await this.findOne(userId, id);
 
-    const totalPage = await this.getBookTotalPage(existing.myBookId);
+    const totalPage = await this.getTotalPage(existing.myBookId);
     const merged = {
       startPage: dto.startPage ?? existing.startPage,
       endPage: dto.endPage ?? existing.endPage,

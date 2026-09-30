@@ -115,6 +115,28 @@ describe('ReadingLogService', () => {
       expect(prismaService.$transaction).not.toHaveBeenCalled();
     });
 
+    it('사용자가 직접 입력한 totalPage가 있으면 책 정보 대신 그 값으로 endPage 상한을 검증한다', async () => {
+      myBookService.assertOwnership.mockResolvedValue({
+        totalPage: 200,
+        book: { totalPage: 300 },
+      });
+      const dto = baseCreateDto({ endPage: 250 });
+
+      await expect(service.create(1, dto)).rejects.toThrow(BadRequestException);
+      expect(prismaService.$transaction).not.toHaveBeenCalled();
+    });
+
+    it('직접 입력한 totalPage가 책 정보보다 크면(전자책 등) 그 범위까지 기록할 수 있다', async () => {
+      myBookService.assertOwnership.mockResolvedValue({
+        totalPage: 500,
+        book: { totalPage: 300 },
+      });
+      mockTx.readingLog.create.mockResolvedValue({ id: 1 });
+      const dto = baseCreateDto({ endPage: 450 });
+
+      await expect(service.create(1, dto)).resolves.toEqual({ id: 1 });
+    });
+
     it('book.totalPage가 null이면 endPage 상한 검증을 건너뛴다', async () => {
       myBookService.assertOwnership.mockResolvedValue({
         book: { totalPage: null },
@@ -359,6 +381,24 @@ describe('ReadingLogService', () => {
         BadRequestException,
       );
       expect(prismaService.$transaction).not.toHaveBeenCalled();
+    });
+
+    it('수정할 때도 직접 입력한 totalPage 기준으로 endPage 상한을 검증한다', async () => {
+      prismaService.readingLog.findFirst.mockResolvedValue(existing);
+      prismaService.myBook.findUniqueOrThrow.mockResolvedValue({
+        totalPage: 500,
+        book: { totalPage: 300 },
+      });
+      mockTx.readingLog.update.mockResolvedValue({ ...existing, endPage: 450 });
+
+      await expect(
+        service.update(1, 1, { endPage: 450 }),
+      ).resolves.toBeDefined();
+      expect(
+        firstCallArg(prismaService.myBook.findUniqueOrThrow),
+      ).toMatchObject({
+        select: { totalPage: true, book: { select: { totalPage: true } } },
+      });
     });
 
     it('정상 수정이면 tx로 update와 진행률 동기화를 호출한다', async () => {

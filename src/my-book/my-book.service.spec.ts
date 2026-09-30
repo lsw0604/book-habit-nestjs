@@ -27,6 +27,7 @@ type MockPrismaService = {
   };
   readingLog: {
     findFirst: jest.Mock;
+    aggregate: jest.Mock;
   };
   $transaction: jest.Mock;
 };
@@ -47,6 +48,7 @@ function fakeMyBookDetail(overrides: Record<string, unknown> = {}) {
     finishedAt: null,
     rating: null,
     currentPage: 0,
+    totalPage: null,
     readCount: 0,
     book: { totalPage: 300 },
     review: null,
@@ -73,6 +75,7 @@ describe('MyBookService', () => {
       },
       readingLog: {
         findFirst: jest.fn(),
+        aggregate: jest.fn(),
       },
       $transaction: jest.fn((arg: Promise<unknown>[]) => Promise.all(arg)),
     };
@@ -103,6 +106,19 @@ describe('MyBookService', () => {
       expect(callWhere(prismaService.myBook.findFirst)).toEqual({
         id: 42,
         userId: 7,
+      });
+    });
+
+    it('assertOwnership은 페이지 상한 검증용으로 직접 입력값과 책 정보 값을 함께 가져온다', async () => {
+      prismaService.myBook.findFirst.mockResolvedValue({
+        totalPage: null,
+        book: { totalPage: 300 },
+      });
+
+      await service.assertOwnership(7, 42);
+
+      expect(firstCallArg(prismaService.myBook.findFirst)).toMatchObject({
+        select: { totalPage: true, book: { select: { totalPage: true } } },
       });
     });
 
@@ -286,6 +302,141 @@ describe('MyBookService', () => {
         NotFoundException,
       );
       expect(prismaService.myBook.update).not.toHaveBeenCalled();
+    });
+  });
+
+  // 사용자가 직접 입력한 MyBook.totalPage가 있으면 Book.totalPage 대신 그 값을 쓴다(resolveTotalPage).
+  describe('update - 직접 입력한 총 페이지 수(totalPage)', () => {
+    beforeEach(() => {
+      prismaService.myBook.update.mockResolvedValue(fakeMyBookDetail());
+      prismaService.readingLog.aggregate.mockResolvedValue({
+        _max: { endPage: null },
+      });
+    });
+
+    it('totalPage를 저장한다', async () => {
+      prismaService.myBook.findFirst.mockResolvedValue(fakeMyBookDetail());
+
+      await service.update(1, 1, { totalPage: 336 });
+
+      expect(updateCallData(prismaService.myBook.update)).toEqual({
+        totalPage: 336,
+      });
+    });
+
+    it('null을 보내면 직접 입력한 값을 지운다(책 정보 값으로 복귀)', async () => {
+      prismaService.myBook.findFirst.mockResolvedValue(
+        fakeMyBookDetail({ totalPage: 500 }),
+      );
+
+      await service.update(1, 1, { totalPage: null });
+
+      expect(updateCallData(prismaService.myBook.update)).toEqual({
+        totalPage: null,
+      });
+    });
+
+    it('currentPage 상한은 책 정보가 아니라 직접 입력한 값 기준이다 (더 큰 경우: 전자책 등)', async () => {
+      prismaService.myBook.findFirst.mockResolvedValue(
+        fakeMyBookDetail({ totalPage: 500, book: { totalPage: 300 } }),
+      );
+
+      await expect(
+        service.update(1, 1, { currentPage: 450 }),
+      ).resolves.toBeDefined();
+    });
+
+    it('currentPage 상한은 책 정보가 아니라 직접 입력한 값 기준이다 (더 작은 경우)', async () => {
+      prismaService.myBook.findFirst.mockResolvedValue(
+        fakeMyBookDetail({ totalPage: 200, book: { totalPage: 300 } }),
+      );
+
+      await expect(service.update(1, 1, { currentPage: 250 })).rejects.toThrow(
+        '현재 페이지가 총 페이지 수를 초과할 수 없습니다.',
+      );
+      expect(prismaService.myBook.update).not.toHaveBeenCalled();
+    });
+
+    it('책 정보에 페이지 수가 없어도 직접 입력하면 currentPage 상한이 생긴다', async () => {
+      prismaService.myBook.findFirst.mockResolvedValue(
+        fakeMyBookDetail({ totalPage: 200, book: { totalPage: null } }),
+      );
+
+      await expect(service.update(1, 1, { currentPage: 250 })).rejects.toThrow(
+        BadRequestException,
+      );
+    });
+
+    it('totalPage와 currentPage를 함께 바꾸면 바뀐 값끼리 비교한다', async () => {
+      prismaService.myBook.findFirst.mockResolvedValue(
+        fakeMyBookDetail({ book: { totalPage: 300 } }),
+      );
+
+      await expect(
+        service.update(1, 1, { totalPage: 500, currentPage: 450 }),
+      ).resolves.toBeDefined();
+    });
+
+    it('totalPage를 현재 페이지보다 작게 바꾸면 BadRequestException을 던진다', async () => {
+      prismaService.myBook.findFirst.mockResolvedValue(
+        fakeMyBookDetail({ currentPage: 120 }),
+      );
+
+      await expect(service.update(1, 1, { totalPage: 100 })).rejects.toThrow(
+        '총 페이지 수는 현재 페이지보다 작을 수 없습니다.',
+      );
+      expect(prismaService.myBook.update).not.toHaveBeenCalled();
+    });
+
+    it('totalPage를 이미 기록한 독서 기록의 종료 페이지보다 작게 바꾸면 BadRequestException을 던진다', async () => {
+      prismaService.myBook.findFirst.mockResolvedValue(
+        fakeMyBookDetail({ currentPage: 50 }),
+      );
+      prismaService.readingLog.aggregate.mockResolvedValue({
+        _max: { endPage: 150 },
+      });
+
+      await expect(service.update(1, 1, { totalPage: 100 })).rejects.toThrow(
+        '총 페이지 수는 이미 기록한 독서 기록의 종료 페이지(150)보다 작을 수 없습니다.',
+      );
+      expect(prismaService.readingLog.aggregate).toHaveBeenCalledWith({
+        where: { myBookId: 1 },
+        _max: { endPage: true },
+      });
+      expect(prismaService.myBook.update).not.toHaveBeenCalled();
+    });
+
+    it('직접 입력을 해제할 때도 되돌아갈 책 정보 값으로 기존 독서 기록을 검증한다', async () => {
+      prismaService.myBook.findFirst.mockResolvedValue(
+        fakeMyBookDetail({ totalPage: 500, book: { totalPage: 300 } }),
+      );
+      prismaService.readingLog.aggregate.mockResolvedValue({
+        _max: { endPage: 450 },
+      });
+
+      await expect(service.update(1, 1, { totalPage: null })).rejects.toThrow(
+        BadRequestException,
+      );
+      expect(prismaService.myBook.update).not.toHaveBeenCalled();
+    });
+
+    it('해제 후 되돌아갈 책 정보 값도 없으면(null) 상한이 없으므로 통과한다', async () => {
+      prismaService.myBook.findFirst.mockResolvedValue(
+        fakeMyBookDetail({ totalPage: 500, book: { totalPage: null } }),
+      );
+
+      await expect(
+        service.update(1, 1, { totalPage: null }),
+      ).resolves.toBeDefined();
+      expect(prismaService.readingLog.aggregate).not.toHaveBeenCalled();
+    });
+
+    it('currentPage만 바꿀 때는 독서 기록을 조회하지 않는다', async () => {
+      prismaService.myBook.findFirst.mockResolvedValue(fakeMyBookDetail());
+
+      await service.update(1, 1, { currentPage: 10 });
+
+      expect(prismaService.readingLog.aggregate).not.toHaveBeenCalled();
     });
   });
 
