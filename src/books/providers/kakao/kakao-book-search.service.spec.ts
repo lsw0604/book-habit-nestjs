@@ -1,5 +1,5 @@
 import { Test, TestingModule } from '@nestjs/testing';
-import { BadGatewayException } from '@nestjs/common';
+import { BadGatewayException, NotFoundException } from '@nestjs/common';
 import { HttpService } from '@nestjs/axios';
 import { ConfigService } from '@nestjs/config';
 import { of, throwError } from 'rxjs';
@@ -262,6 +262,56 @@ describe('KakaoBookSearchService', () => {
       expect(result.items).toEqual([]);
       expect(result.meta.totalCount).toBe(0);
       expect(result.meta.hasNextPage).toBe(false);
+    });
+  });
+
+  describe('getByIsbn', () => {
+    it('target=isbn으로 조회해 ISBN이 정확히 같은 문서를 Book 모양으로 돌려준다', async () => {
+      httpService.get.mockReturnValue(
+        of(
+          fakeAxiosResponse(
+            fakeResponse([
+              fakeDocument({
+                isbn: '1168340772 9791168340770',
+                title: '다른 판',
+              }),
+              fakeDocument(),
+            ]),
+          ),
+        ),
+      );
+
+      const result = await service.getByIsbn('9788996991342');
+
+      const params = requestedParams(httpService.get);
+      expect(params.get('query')).toBe('9788996991342');
+      expect(params.get('target')).toBe('isbn');
+      expect(result.isbn).toBe('9788996991342');
+      expect(result.title).toBe('미움받을 용기');
+    });
+
+    it('ISBN이 같은 문서가 없으면 NotFoundException을 던진다', async () => {
+      httpService.get.mockReturnValue(
+        of(
+          fakeAxiosResponse(
+            fakeResponse([fakeDocument({ isbn: '1168340772 9791168340770' })]),
+          ),
+        ),
+      );
+
+      await expect(service.getByIsbn('9788996991342')).rejects.toThrow(
+        NotFoundException,
+      );
+    });
+
+    it('외부 API 호출이 실패하면 BadGatewayException으로 변환한다', async () => {
+      httpService.get.mockReturnValue(
+        throwError(() => ({ response: { data: 'error' } }) as AxiosError),
+      );
+
+      await expect(service.getByIsbn('9788996991342')).rejects.toThrow(
+        BadGatewayException,
+      );
     });
   });
 
