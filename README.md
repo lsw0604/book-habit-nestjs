@@ -160,7 +160,7 @@ npm install
 cp .env.example .env
 ```
 
-`DATABASE_URL`, `JWT_*_SECRET`, `CORS_ORIGINS`, `KAKAO_CLIENT_ID`/`KAKAO_CALLBACK_URL`은 필수이며 부팅 시 Joi 스키마로 검증됩니다. `KAKAO_REST_API`/`NL_CERT_KEY`/`DATA4LIBRARY_AUTH_KEY`는 선택값입니다.
+`DATABASE_URL`, `JWT_*_SECRET`, `CORS_ORIGINS`, `KAKAO_CLIENT_ID`/`KAKAO_CALLBACK_URL`은 필수이며 부팅 시 Joi 스키마로 검증됩니다. `KAKAO_REST_API`/`NL_CERT_KEY`는 선택값입니다.
 
 ### 3. 로컬 MySQL 실행
 
