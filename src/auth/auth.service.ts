@@ -130,8 +130,9 @@ export class AuthService {
   }
 
   // @nestjs/jwt의 expiresIn은 ms 패키지의 리터럴 유니온(StringValue)을 요구하지만
-  // ConfigService는 일반 string만 반환함. 실제 형식 검증은 이 값을 그대로 쓰는
-  // parseExpiresInMs(auth.constants.ts, 쿠키 maxAge 계산용)가 런타임에 담당함.
+  // ConfigService는 일반 string만 반환함. 실제 형식 검증('15m', '7d' 등)은
+  // env-validation.schema.ts의 Joi pattern이 부팅 시점에 이미 담당하므로 여기서는
+  // 그대로 캐스팅함.
   private expiresIn(key: string) {
     return this.configService.getOrThrow<string>(key) as never;
   }

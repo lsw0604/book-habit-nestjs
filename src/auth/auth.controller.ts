@@ -24,11 +24,11 @@ import { CurrentUser } from './decorators';
 import type { JwtPayload } from './types';
 import {
   ACCESS_TOKEN_COOKIE,
+  AUTH_COOKIE_MAX_AGE_MS,
   AUTH_THROTTLE,
   KAKAO_OAUTH_STATE_COOKIE,
   KAKAO_OAUTH_STATE_COOKIE_PATH,
   KAKAO_OAUTH_STATE_MAX_AGE_MS,
-  parseExpiresInMs,
   REFRESH_TOKEN_COOKIE,
   REFRESH_TOKEN_COOKIE_PATH,
 } from './auth.constants';
@@ -152,9 +152,7 @@ export class AuthController {
     const accessToken = this.authService.issueAccessToken(user);
 
     this.setCookie(res, ACCESS_TOKEN_COOKIE, accessToken, {
-      maxAge: parseExpiresInMs(
-        this.configService.getOrThrow<string>('JWT_ACCESS_EXPIRES_IN'),
-      ),
+      maxAge: AUTH_COOKIE_MAX_AGE_MS,
     });
   }
 
@@ -197,16 +195,12 @@ export class AuthController {
 
   private setAuthCookies(res: Response, tokens: AuthTokens) {
     this.setCookie(res, ACCESS_TOKEN_COOKIE, tokens.accessToken, {
-      maxAge: parseExpiresInMs(
-        this.configService.getOrThrow<string>('JWT_ACCESS_EXPIRES_IN'),
-      ),
+      maxAge: AUTH_COOKIE_MAX_AGE_MS,
     });
 
     this.setCookie(res, REFRESH_TOKEN_COOKIE, tokens.refreshToken, {
       path: REFRESH_TOKEN_COOKIE_PATH,
-      maxAge: parseExpiresInMs(
-        this.configService.getOrThrow<string>('JWT_REFRESH_EXPIRES_IN'),
-      ),
+      maxAge: AUTH_COOKIE_MAX_AGE_MS,
     });
   }
 
