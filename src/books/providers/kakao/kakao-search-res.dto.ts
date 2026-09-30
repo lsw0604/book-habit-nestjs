@@ -7,6 +7,7 @@ import {
   parseKakaoIdentifier,
 } from './kakao-identifier.util';
 import { KakaoDocument } from './kakao.types';
+import { BookThumbnailApiProperty } from '../../dto/book-image.api-property';
 
 export class KakaoBookItemDto {
   @ApiProperty({
@@ -67,7 +68,7 @@ export class KakaoBookItemDto {
   @Expose()
   publisher: string | null;
 
-  @ApiProperty({ description: '썸네일 URL', nullable: true })
+  @ApiProperty(BookThumbnailApiProperty)
   @Expose()
   thumbnail: string | null;
 

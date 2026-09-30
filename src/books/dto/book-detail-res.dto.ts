@@ -1,6 +1,10 @@
 import { ApiProperty } from '@nestjs/swagger';
 import type { Book } from '@prisma/client';
 import type { BookLookupResDto } from './book-lookup-res.dto';
+import {
+  BookCoverImageApiProperty,
+  BookThumbnailApiProperty,
+} from './book-image.api-property';
 
 /**
  * GET /books/detail/:isbn 응답. DB의 Book 행(서재에 담긴 책) 또는 외부 조회 결과(아직
@@ -43,10 +47,10 @@ export class BookDetailResDto {
   @ApiProperty({ description: '책 소개', type: String, nullable: true })
   description: string | null;
 
-  @ApiProperty({ description: '썸네일 이미지', type: String, nullable: true })
+  @ApiProperty(BookThumbnailApiProperty)
   thumbnail: string | null;
 
-  @ApiProperty({ description: '커버 이미지', type: String, nullable: true })
+  @ApiProperty(BookCoverImageApiProperty)
   coverImage: string | null;
 
   @ApiProperty({ description: '상세 URL', type: String, nullable: true })
