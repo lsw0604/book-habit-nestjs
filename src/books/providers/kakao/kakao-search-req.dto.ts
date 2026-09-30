@@ -9,6 +9,7 @@ import {
   Max,
   IsNotEmpty,
 } from 'class-validator';
+import { KAKAO_MAX_PAGE, KAKAO_MAX_SIZE } from './kakao.constants';
 
 export class KakaoSearchReqDto {
   @ApiProperty({
@@ -40,7 +41,9 @@ export class KakaoSearchReqDto {
   @Type(() => Number) // Query String -> Number 변환
   @IsInt({ message: '페이지 번호는 정수여야 합니다.' })
   @Min(1, { message: '페이지 번호는 1 이상이어야 합니다.' })
-  @Max(50, { message: '페이지 번호는 50 이하여야 합니다.' })
+  @Max(KAKAO_MAX_PAGE, {
+    message: `페이지 번호는 ${KAKAO_MAX_PAGE} 이하여야 합니다.`,
+  })
   page?: number;
 
   @ApiPropertyOptional({
@@ -52,7 +55,9 @@ export class KakaoSearchReqDto {
   @Type(() => Number) // Query String -> Number 변환
   @IsInt({ message: '페이지당 결과 수는 정수여야 합니다.' })
   @Min(1, { message: '페이지당 결과 수는 1 이상이어야 합니다.' })
-  @Max(50, { message: '페이지당 결과 수는 50 이하여야 합니다.' })
+  @Max(KAKAO_MAX_SIZE, {
+    message: `페이지당 결과 수는 ${KAKAO_MAX_SIZE} 이하여야 합니다.`,
+  })
   size?: number;
 
   @ApiPropertyOptional({

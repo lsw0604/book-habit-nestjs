@@ -29,12 +29,14 @@ function fakeDocument(overrides: Partial<KakaoDocument> = {}): KakaoDocument {
 function fakeResponse(
   documents: KakaoDocument[],
   totalCount = documents.length,
+  meta: Partial<ResponseKakaoSearchBook['meta']> = {},
 ): ResponseKakaoSearchBook {
   return {
     meta: {
       total_count: totalCount,
       pageable_count: totalCount,
-      is_end: true,
+      is_end: false,
+      ...meta,
     },
     documents,
   };
@@ -170,6 +172,84 @@ describe('KakaoBookSearchService', () => {
       const [item] = (await service.search({ query: '용기' })).items;
 
       expect(item.pubDate).toBeNull();
+    });
+
+    it('카카오 조회 한도(50페이지)를 넘는 결과는 한도까지만 페이지로 계산한다', async () => {
+      httpService.get.mockReturnValue(
+        of(
+          fakeAxiosResponse(
+            fakeResponse([fakeDocument()], 100000, { pageable_count: 5000 }),
+          ),
+        ),
+      );
+
+      const result = await service.search({
+        query: '용기',
+        page: 50,
+        size: 10,
+      });
+
+      expect(result.meta.totalCount).toBe(500);
+      expect(result.meta.totalPages).toBe(50);
+      expect(result.meta.hasNextPage).toBe(false);
+      expect(result.meta.nextPage).toBeUndefined();
+    });
+
+    // 2026-09-30 "소설" 검색 실제 meta. 20페이지(size 50)에서 is_end가 true가 되고,
+    // 그 뒤로는 같은 페이지가 반복된다.
+    it.each([
+      [19, true],
+      [20, false],
+    ])(
+      'pageable_count 1000, size 50이면 20페이지까지다 (page %i → hasNextPage %p)',
+      async (page, hasNextPage) => {
+        httpService.get.mockReturnValue(
+          of(
+            fakeAxiosResponse(
+              fakeResponse([fakeDocument()], 79265, {
+                pageable_count: 1000,
+                is_end: page === 20,
+              }),
+            ),
+          ),
+        );
+
+        const result = await service.search({ query: '소설', page, size: 50 });
+
+        expect(result.meta.totalCount).toBe(1000);
+        expect(result.meta.totalPages).toBe(20);
+        expect(result.meta.hasNextPage).toBe(hasNextPage);
+      },
+    );
+
+    it('total_count가 아니라 실제로 넘겨볼 수 있는 pageable_count로 계산한다', async () => {
+      httpService.get.mockReturnValue(
+        of(
+          fakeAxiosResponse(
+            fakeResponse([fakeDocument()], 1000, { pageable_count: 30 }),
+          ),
+        ),
+      );
+
+      const result = await service.search({ query: '용기', size: 10 });
+
+      expect(result.meta.totalCount).toBe(30);
+      expect(result.meta.totalPages).toBe(3);
+    });
+
+    it('카카오가 is_end로 마지막 페이지라고 하면 계산과 무관하게 다음 페이지가 없다', async () => {
+      httpService.get.mockReturnValue(
+        of(
+          fakeAxiosResponse(
+            fakeResponse([fakeDocument()], 25, { is_end: true }),
+          ),
+        ),
+      );
+
+      const result = await service.search({ query: '용기', page: 2, size: 10 });
+
+      expect(result.meta.hasNextPage).toBe(false);
+      expect(result.meta.nextPage).toBeUndefined();
     });
 
     it('빈 결과도 정상 처리한다', async () => {
