@@ -15,7 +15,6 @@ export const MyBookDetailInclude = {
       url: true,
       pubDate: true,
       totalPage: true,
-      stockStatus: true,
     },
   },
   review: {

@@ -42,8 +42,7 @@ model Book {
   description String?   @db.Text
   url         String?   @db.Text
   pubDate     DateTime? @db.Date
-  totalPage   Int?      @default(0)
-  stockStatus String?
+  totalPage   Int?
   myBook      MyBook[]
   createdAt   DateTime  @default(now())
   updatedAt   DateTime  @updatedAt

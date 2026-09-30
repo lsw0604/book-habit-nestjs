@@ -55,10 +55,6 @@ export class AladinLookupResDto {
   @Expose()
   url: string | null;
 
-  @ApiProperty({ description: '재고 상태', nullable: true })
-  @Expose()
-  stockStatus: string | null;
-
   // 🏭 Factory Method: Raw Data -> DTO 변환
   static from(doc: AladinDocumentRaw): AladinLookupResDto {
     const {
@@ -70,7 +66,6 @@ export class AladinLookupResDto {
       link,
       pubDate: rawDate,
       subInfo,
-      stockStatus,
       publisher,
     } = doc;
 
@@ -120,7 +115,6 @@ export class AladinLookupResDto {
       subTitle: subTitle || null,
       totalPage: itemPage || null,
       url: link || null,
-      stockStatus: stockStatus || null,
     };
   }
 }

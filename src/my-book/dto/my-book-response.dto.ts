@@ -46,9 +46,6 @@ export class MyBookDetailBookDto {
 
   @ApiProperty({ description: '총 페이지 수', nullable: true })
   totalPage: number | null;
-
-  @ApiProperty({ description: '재고 상태', nullable: true })
-  stockStatus: string | null;
 }
 
 export class MyBookListItemBookDto {
