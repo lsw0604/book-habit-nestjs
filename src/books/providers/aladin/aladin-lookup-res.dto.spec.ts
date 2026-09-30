@@ -95,19 +95,36 @@ describe('AladinLookupResDto.from', () => {
     expect(dto.totalPage).toBeNull();
   });
 
-  it('publisher/description/stockStatus/link가 falsy면 null로 정규화한다', () => {
+  it('publisher/description/link가 falsy면 null로 정규화한다', () => {
     const dto = AladinLookupResDto.from(
       baseDoc({
         publisher: '',
         description: '',
-        stockStatus: '',
         link: '',
       }),
     );
 
     expect(dto.publisher).toBeNull();
     expect(dto.description).toBeNull();
-    expect(dto.stockStatus).toBeNull();
     expect(dto.url).toBeNull();
+  });
+
+  it('Book 모델에 그대로 넣을 수 있도록 Book 필드만 가진다', () => {
+    expect(Object.keys(AladinLookupResDto.from(baseDoc())).sort()).toEqual(
+      [
+        'isbn',
+        'title',
+        'subTitle',
+        'authors',
+        'translators',
+        'publisher',
+        'thumbnail',
+        'coverImage',
+        'description',
+        'url',
+        'pubDate',
+        'totalPage',
+      ].sort(),
+    );
   });
 });
