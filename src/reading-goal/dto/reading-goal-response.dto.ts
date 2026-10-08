@@ -1,4 +1,4 @@
-import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
+import { ApiProperty } from '@nestjs/swagger';
 import { ReadingGoalMetric } from '@prisma/client';
 
 export class ReadingGoalResponseDto {
@@ -8,9 +8,10 @@ export class ReadingGoalResponseDto {
   @ApiProperty({ description: '목표 연도', example: 2026 })
   year: number;
 
-  @ApiPropertyOptional({
+  @ApiProperty({
     description: '목표 월 (null이면 연간 목표)',
     nullable: true,
+    type: Number,
   })
   month: number | null;
 
