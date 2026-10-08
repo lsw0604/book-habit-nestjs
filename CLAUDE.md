@@ -46,7 +46,7 @@ npm run prisma:studio     # open Prisma Studio GUI
 
 ## Architecture
 
-- **Bootstrap** ([src/main.ts](src/main.ts)): global `api` prefix, `helmet()`, the request-logging middleware, `cookie-parser`, and a global `ValidationPipe` (`whitelist`, `transform`, `forbidNonWhitelisted`). Swagger is served at `/api`. `PORT` defaults to 3000. `app.enableShutdownHooks()` is what makes `PrismaService.onModuleDestroy` (`$disconnect`) run on SIGTERM/SIGINT.
+- **Bootstrap** ([src/main.ts](src/main.ts)): global `api` prefix, `helmet()`, the request-logging middleware, `cookie-parser`, and a global `ValidationPipe` (`whitelist`, `transform`, `forbidNonWhitelisted`). Swagger is served at `/api`; its `DocumentBuilder` config lives in [src/swagger.ts](src/swagger.ts), not inline in `main.ts`, so a script that only dumps the spec can import the same config (two builders would silently drift on `servers`/`securitySchemes`). `PORT` defaults to 3000. `app.enableShutdownHooks()` is what makes `PrismaService.onModuleDestroy` (`$disconnect`) run on SIGTERM/SIGINT.
 - **Root module** ([src/app.module.ts](src/app.module.ts)): register new feature modules here.
   - `ConfigModule` validates env with Joi ([src/config/env-validation.schema.ts](src/config/env-validation.schema.ts)) and fails fast at boot. Required: `DATABASE_URL`, `JWT_*_SECRET`/`JWT_*_EXPIRES_IN`, `CORS_ORIGINS`, `KAKAO_CLIENT_ID`/`KAKAO_CALLBACK_URL`. `KAKAO_REST_API`/`NL_CERT_KEY` stay optional, because the code reads them with `configService.get`, not `getOrThrow`.
   - App-wide providers are registered through `APP_INTERCEPTOR`/`APP_FILTER`/`APP_GUARD`. The guard is `ThrottlerGuard`, a 100 req/min default; `AUTH_THROTTLE` tightens it for auth (see Auth).
@@ -56,7 +56,14 @@ npm run prisma:studio     # open Prisma Studio GUI
   - Prisma is **pinned exactly** to `6.12.0` (no caret). 6.13+ pulls a vulnerable `deepmerge-ts` via `@prisma/config`, so bump it deliberately.
   - Core domain: `Book` (keyed by unique `isbn`), `User`, `MyBook` (unique `[userId, bookId]`), `ReadingLog` (with `Quote`s), `MyBookReview` + `ReviewLike`/`ReviewComment`, `Tag`/`MyBookTag`, `ReadingGoal`.
   - Several `userId` FKs deliberately skip `onDelete: Cascade`, because MySQL rejects "multiple cascade paths" where a cascade already arrives via `MyBook`. Read the schema comments before adding cascades.
-- **Response envelope** (`src/common/response`): `ResponseDtoInterceptor` wraps every response as `{ success, statusCode, message, data }`, and `ResponseExceptionFilter` normalizes every exception to the same shape. Set the message with `@ResponseMessage('...')`. For Swagger, use `@ApiResponseDto(Dto, { isArray? })`, **not** `@ApiOkResponse`, which would document the unwrapped body.
+- **Response envelope** (`src/common/response`): `ResponseDtoInterceptor` wraps every response as `{ success, statusCode, message, data }`, and `ResponseExceptionFilter` normalizes every exception to the same shape. Set the message with `@ResponseMessage('...')`. The envelope's `statusCode` is read off `res.statusCode`, so it always equals the HTTP status.
+  - **Swagger decorators for the envelope** — never `@ApiOkResponse`/`@ApiResponse` with a bare DTO, which documents the *unwrapped* body:
+    - `@ApiResponseDto(Dto, { isArray?, description?, status? })` — 200 with `data`.
+    - `@ApiCreatedResponseDto(Dto)` — for a `POST` **without** `@HttpCode`. Nest answers 201 there, so documenting 200 is a lie; this was wrong on all 10 create endpoints once.
+    - `@ApiVoidResponseDto(description?)` — handler returns nothing (every `DELETE`, `logout`, `refresh`). The envelope still goes out, just with no `data` key; omitting the decorator documents an empty body instead.
+    - `@ApiErrorResponse(status, description)` / `@ApiUnauthorizedResponse()` — every error shares one schema (`ResponseDto`), so these declare only *which* statuses are reachable. Describe the cause; "404" alone doesn't say whether the parent or the resource was missing.
+  - **`nullable: true` needs an explicit `type`.** `@ApiProperty({ nullable: true })` on a `string | null` field reflects `design:type` as `Object` and emits `{ type: "object" }`, which makes generated clients unusable. Always pass `type: String`/`type: Number`/`type: Date` (see [book-image.api-property.ts](src/books/dto/book-image.api-property.ts)). This was wrong on 18 response fields once.
+  - A response field that is always present but can be `null` uses `@ApiProperty` + `nullable`, not `@ApiPropertyOptional` — the key is not optional, its value is.
 - **Shared helpers** (`src/common`):
   - `PaginationUtil` (`getSkipTake`/`getPaginationMeta`): Prisma `skip`/`take` plus `PaginationMeta`.
   - `PrismaErrorUtil` (`isUniqueConstraintViolation`/`isRecordNotFound`): detects P2002/P2025, so services can map them to 409/404.
@@ -72,7 +79,7 @@ npm run prisma:studio     # open Prisma Studio GUI
 
 ### Auth
 
-`src/auth`: local (email/password) and Kakao OAuth login. It issues a JWT **access + refresh token pair as httpOnly cookies**. There is no Bearer scheme: Swagger's `.addBearerAuth()` in `main.ts` is vestigial, and `AccessTokenStrategy` reads only the cookie.
+`src/auth`: local (email/password) and Kakao OAuth login. It issues a JWT **access + refresh token pair as httpOnly cookies**. There is no Bearer scheme — `AccessTokenStrategy` reads only the cookie. Swagger declares two `apiKey`-in-cookie schemes named after the cookies themselves; pass `addCookieAuth`'s third argument (`securityName`), or both register as `cookie` and the second overwrites the first. Mark guarded endpoints with `@ApiAccessCookieAuth()` / `@ApiRefreshCookieAuth()` (`src/auth/decorators`) or Swagger shows them as public. Do **not** mark `OptionalAccessTokenGuard` endpoints — declaring security there would claim the cookie is required.
 
 - `POST /auth/signup|login|kakao/callback` set `access_token` (path `/`) and `refresh_token`. The refresh cookie's path is `/api/auth` only (`REFRESH_TOKEN_COOKIE_PATH` in [auth.constants.ts](src/auth/auth.constants.ts)). `POST /auth/refresh` reissues the access token.
 - Guards (`src/auth/guards`):
@@ -94,6 +101,7 @@ Every resource is scoped to its owner. *How* depends on whether the model has a 
 
 ### Domain modules
 
+- **`user`**: "my account" only. There is no `POST /user` (that's `POST /auth/signup`, which also issues the session cookies) and no list endpoint — nothing in the product shows other people's email/birthday/gender, and a guard alone wouldn't fix that. `GET`/`PATCH`/`DELETE /user/:id` sit behind `AccessTokenGuard` and `assertSelf` (403 on someone else's id). The identity check lives in the controller, not the service: `User`'s owner is itself, so there's no relation to filter on and `UserService` keeps its single-`id` signature.
 - **`my-book`**: a user's copy of a book (status, rating, `currentPage`; unique `[userId, bookId]`). It exports `MyBookService`.
   - `buildStatusTransition` is the status state machine: `WANT_TO_READ` → `CURRENTLY_READING` → `READ`, with `startedAt`/`finishedAt`/`readCount` side effects.
   - `MyBook.totalPage` is a **user-entered page count**, and `null` means "use `Book.totalPage`". It exists because old books often have no page count anywhere, and e-books and other editions paginate differently under one ISBN. Set it with `PATCH /my-book/:id { totalPage }`; `null` clears it. Responses carry both it and `book.totalPage`, and the client's progress denominator is `totalPage ?? book.totalPage`.
@@ -108,7 +116,7 @@ Every resource is scoped to its owner. *How* depends on whether the model has a 
 - **`quote`**: ownership is two relations deep (`Quote` → `ReadingLog` → `MyBook`). `QuoteService.assertReadingLogOwnership` does its own `findFirst({ id: readingLogId, myBook: { userId } })`. It can't reuse `MyBookService.assertOwnership`, which works at the wrong level, or `ReadingLogService`, which isn't exported.
 - **`my-book-review`**: the **owner-facing** side of the single one-line review per `MyBook`. Every endpoint needs `AccessTokenGuard`.
   - `findAll` returns everything the caller wrote. `findLiked`/`findCommented` go through `accessibleOr`, so reviews that later went private drop out.
-  - `GET /my-book-review/:id` is **owner-only** and returns the edit shape (`myBookId`/`isPublic`/`updatedAt`). Reading someone else's review goes through `public-review`, because a stranger must get `author`/`isLiked` and must **not** get `myBookId`. Don't widen `findOne` to `accessibleOr`; that reintroduces the leak.
+  - `GET /my-book-review/:id` takes the **review's own PK**, is owner-only, and returns the edit shape (`myBookId`/`isPublic`/`updatedAt`). To go the other way — "does this shelf item have a review?" — use `GET /my-book-review/by-my-book/:myBookId`, which exploits `myBookId`'s unique index and answers `null` (not 404) for both "not written yet" and "not my `MyBook`". Don't conflate the two identifiers; the client passing a `myBookId` to `:id` silently reads a *different* review of its own. Reading someone else's review goes through `public-review`, because a stranger must get `author`/`isLiked` and must **not** get `myBookId`. Don't widen `findOne` to `accessibleOr`; that reintroduces the leak.
   - It exports `assertAccessible` ("may this actor like/comment?") for `review-like`/`review-comment`. That's a different question from "may this actor read the detail?"; keep them apart.
 - **`review-like`** / **`review-comment`**: both call `assertAccessible` before writing. Making a review private blocks *new* interactions but doesn't delete existing ones.
   - Comments expose the commenter as `author` (`{ id, name, profile }`), never the raw `userId`.
