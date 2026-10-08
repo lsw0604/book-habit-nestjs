@@ -55,10 +55,6 @@ export class UserService {
     }
   }
 
-  findAll() {
-    return this.prisma.user.findMany({ omit: { password: true } });
-  }
-
   async findOne(id: number) {
     const user = await this.prisma.user.findUnique({
       where: { id },
