@@ -11,17 +11,21 @@ import {
   Min,
 } from 'class-validator';
 
+// 'ALL'은 MyBookStatus에 없는 요청 전용 sentinel이라 enum 목록에 직접 끼워 넣는다.
+// 설명 문구로만 적어 두면 생성 타입과 Swagger UI 드롭다운에서 보낼 수 없다.
+export const MY_BOOK_STATUS_FILTER_ALL = 'ALL';
+
 export class FindMyBookQueryDto {
   @ApiPropertyOptional({
     description:
       '조회할 서재 상태. "ALL" 또는 미지정 시 전체 상태를 반환 (MyBookStatus 값이 아니라 요청 전용 필터임)',
-    enum: MyBookStatus,
+    enum: [...Object.values(MyBookStatus), MY_BOOK_STATUS_FILTER_ALL],
   })
   @IsOptional()
   // 'ALL'은 MyBook.status의 실제 값이 아니라 "필터 없음"을 뜻하는 요청 전용 sentinel이라
   // 검증 전에 undefined로 치환해서 이후에는 기존 optional 필터 로직을 그대로 탄다.
   @Transform(({ value }: { value: unknown }) =>
-    value === 'ALL' ? undefined : value,
+    value === MY_BOOK_STATUS_FILTER_ALL ? undefined : value,
   )
   @IsEnum(MyBookStatus, { message: '유효한 상태 값이 아닙니다.' })
   status?: MyBookStatus;
