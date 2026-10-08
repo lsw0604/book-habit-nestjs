@@ -11,7 +11,7 @@ import {
   Query,
   UseGuards,
 } from '@nestjs/common';
-import { ApiOperation, ApiTags } from '@nestjs/swagger';
+import { ApiOperation, ApiParam, ApiTags } from '@nestjs/swagger';
 import { MyBookReviewService } from './my-book-review.service';
 import { CreateMyBookReviewDto } from './dto/create-my-book-review.dto';
 import { UpdateMyBookReviewDto } from './dto/update-my-book-review.dto';
@@ -20,7 +20,7 @@ import {
   MyBookReviewListResponseDto,
   MyBookReviewResponseDto,
 } from './dto/my-book-review-response.dto';
-import { ApiResponseDto } from '../common';
+import { ApiResponseDto, ApiUnauthorizedResponse } from '../common';
 import { AccessTokenGuard } from '../auth/guards';
 import { CurrentUser } from '../auth/decorators';
 
@@ -79,6 +79,27 @@ export class MyBookReviewController {
   ) {
     const { page = 1, limit = 10 } = query;
     return this.myBookReviewService.findCommented(user.sub, { page, limit });
+  }
+
+  // ':id'(ParseIntPipe)보다 세그먼트가 하나 더 많아 라우트가 겹치지 않는다
+  // (MyBookController의 'by-isbn/:isbn'과 같은 패턴).
+  @Get('by-my-book/:myBookId')
+  @UseGuards(AccessTokenGuard)
+  @ApiOperation({
+    summary: 'MyBook ID로 그 책의 한줄평 조회',
+    description:
+      '경로 식별자가 MyBookReview.id가 아니라 MyBookId다. MyBook당 한줄평이 1개라서(myBookId unique) 상위 리소스 식별자로 유일한 자식을 찾는다. 아직 쓰지 않았으면 data는 null.',
+  })
+  @ApiParam({ name: 'myBookId', description: 'MyBook ID (한줄평 ID가 아니다)' })
+  @ApiResponseDto(MyBookReviewResponseDto, {
+    description: '한줄평을 쓰지 않았거나 남의 서재 항목이면 data는 null',
+  })
+  @ApiUnauthorizedResponse()
+  findByMyBookId(
+    @CurrentUser() user: JwtPayload,
+    @Param('myBookId', ParseIntPipe) myBookId: number,
+  ) {
+    return this.myBookReviewService.findByMyBookId(user.sub, myBookId);
   }
 
   @Get(':id')
