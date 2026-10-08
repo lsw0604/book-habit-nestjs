@@ -4,6 +4,7 @@ import {
   Controller,
   Delete,
   Get,
+  HttpStatus,
   Param,
   ParseIntPipe,
   Patch,
@@ -11,16 +12,23 @@ import {
   Query,
   UseGuards,
 } from '@nestjs/common';
-import { ApiOperation, ApiQuery, ApiTags } from '@nestjs/swagger';
+import { ApiOperation, ApiParam, ApiQuery, ApiTags } from '@nestjs/swagger';
 import { QuoteService } from './quote.service';
 import { CreateQuoteDto } from './dto/create-quote.dto';
 import { UpdateQuoteDto } from './dto/update-quote.dto';
 import { QuoteResponseDto } from './dto/quote-response.dto';
-import { ApiResponseDto } from '../common';
+import {
+  ApiCreatedResponseDto,
+  ApiErrorResponse,
+  ApiResponseDto,
+  ApiUnauthorizedResponse,
+  ApiVoidResponseDto,
+} from '../common';
 import { AccessTokenGuard } from '../auth/guards';
-import { CurrentUser } from '../auth/decorators';
+import { ApiAccessCookieAuth, CurrentUser } from '../auth/decorators';
 
 @ApiTags('Quote')
+@ApiAccessCookieAuth()
 @UseGuards(AccessTokenGuard)
 @Controller('quote')
 export class QuoteController {
@@ -28,7 +36,12 @@ export class QuoteController {
 
   @Post()
   @ApiOperation({ summary: '인용구 생성' })
-  @ApiResponseDto(QuoteResponseDto)
+  @ApiCreatedResponseDto(QuoteResponseDto)
+  @ApiUnauthorizedResponse()
+  @ApiErrorResponse(
+    HttpStatus.NOT_FOUND,
+    '독서 기록이 없거나 본인 것이 아님 (소유권은 Quote→ReadingLog→MyBook 두 단계)',
+  )
   create(@CurrentUser() user: JwtPayload, @Body() dto: CreateQuoteDto) {
     return this.quoteService.create(user.sub, dto);
   }
@@ -41,6 +54,8 @@ export class QuoteController {
     description: 'ReadingLog ID',
   })
   @ApiResponseDto(QuoteResponseDto, { isArray: true })
+  @ApiUnauthorizedResponse()
+  @ApiErrorResponse(HttpStatus.NOT_FOUND, '독서 기록이 없거나 본인 것이 아님')
   findAll(
     @CurrentUser() user: JwtPayload,
     @Query('readingLogId', ParseIntPipe) readingLogId: number,
@@ -50,7 +65,10 @@ export class QuoteController {
 
   @Get(':id')
   @ApiOperation({ summary: '인용구 단건 조회' })
+  @ApiParam({ name: 'id', description: 'Quote ID' })
   @ApiResponseDto(QuoteResponseDto)
+  @ApiUnauthorizedResponse()
+  @ApiErrorResponse(HttpStatus.NOT_FOUND, '인용구가 없거나 본인 것이 아님')
   findOne(
     @CurrentUser() user: JwtPayload,
     @Param('id', ParseIntPipe) id: number,
@@ -60,7 +78,10 @@ export class QuoteController {
 
   @Patch(':id')
   @ApiOperation({ summary: '인용구 수정' })
+  @ApiParam({ name: 'id', description: 'Quote ID' })
   @ApiResponseDto(QuoteResponseDto)
+  @ApiUnauthorizedResponse()
+  @ApiErrorResponse(HttpStatus.NOT_FOUND, '인용구가 없거나 본인 것이 아님')
   update(
     @CurrentUser() user: JwtPayload,
     @Param('id', ParseIntPipe) id: number,
@@ -71,6 +92,10 @@ export class QuoteController {
 
   @Delete(':id')
   @ApiOperation({ summary: '인용구 삭제' })
+  @ApiParam({ name: 'id', description: 'Quote ID' })
+  @ApiVoidResponseDto('삭제됨')
+  @ApiUnauthorizedResponse()
+  @ApiErrorResponse(HttpStatus.NOT_FOUND, '인용구가 없거나 본인 것이 아님')
   remove(
     @CurrentUser() user: JwtPayload,
     @Param('id', ParseIntPipe) id: number,
