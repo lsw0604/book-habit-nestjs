@@ -179,6 +179,26 @@ export class MyBookReviewService {
     return review;
   }
 
+  /**
+   * MyBook 하나에 딸린 한줄평을 myBookId로 찾는다. MyBookReview.myBookId가
+   * unique(1:1)라서 결과는 0개 또는 1개다.
+   *
+   * 없으면 404가 아니라 **null**이다 - 호출부가 묻는 것은 "이 책에 한줄평을
+   * 썼는지"이고, 안 쓴 상태는 오류가 아니라 정상 답이다(MyBook의
+   * GET /my-book/by-isbn/:isbn과 같은 규칙).
+   *
+   * where에 myBook: { userId }를 함께 걸기 때문에 남의 MyBook id를 넣어도
+   * null이 나온다 - 남의 서재에 한줄평이 있는지조차 알려주지 않는다.
+   */
+  async findByMyBookId(userId: number, myBookId: number) {
+    const review = await this.prismaService.myBookReview.findFirst({
+      where: { myBookId, myBook: { userId } },
+      include: COUNT_INCLUDE,
+    });
+
+    return review ?? null;
+  }
+
   private async assertReviewOwnership(userId: number, id: number) {
     const review = await this.prismaService.myBookReview.findFirst({
       where: { id, myBook: { userId } },

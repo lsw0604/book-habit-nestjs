@@ -164,6 +164,32 @@ describe('MyBookReviewService', () => {
     });
   });
 
+  describe('findByMyBookId', () => {
+    it('myBookId와 myBook.userId를 함께 스코프한다', async () => {
+      prismaService.myBookReview.findFirst.mockResolvedValue({ id: 42 });
+
+      await service.findByMyBookId(7, 11);
+
+      // userId 조건이 빠지면 남의 서재 항목에 한줄평이 있는지가 노출된다.
+      expect(callWhere(prismaService.myBookReview.findFirst)).toEqual({
+        myBookId: 11,
+        myBook: { userId: 7 },
+      });
+    });
+
+    it('한줄평이 없으면 던지지 않고 null을 반환한다', async () => {
+      prismaService.myBookReview.findFirst.mockResolvedValue(null);
+
+      await expect(service.findByMyBookId(7, 11)).resolves.toBeNull();
+    });
+
+    it('남의 서재 항목도 404가 아니라 null이다', async () => {
+      prismaService.myBookReview.findFirst.mockResolvedValue(null);
+
+      await expect(service.findByMyBookId(7, 999)).resolves.toBeNull();
+    });
+  });
+
   // MyBookReview는 userId 직접 컬럼이 없어 myBook 관계를 통해서만 소유권을 판별한다.
   // 이 관계 조건이 빠지면 남의 한줄평을 수정/삭제할 수 있다.
   describe('소유권 스코프 (where 절)', () => {
