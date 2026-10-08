@@ -18,9 +18,20 @@ import type { CookieOptions, Request, Response } from 'express';
 import { AuthService, AuthTokens } from './auth.service';
 import { CreateUserDto } from '../user/dto/create-user.dto';
 import { AuthUserResponseDto, KakaoCallbackQueryDto, LoginDto } from './dto';
-import { ApiResponseDto, ResponseMessage } from '../common';
+import {
+  ApiCreatedResponseDto,
+  ApiErrorResponse,
+  ApiResponseDto,
+  ApiUnauthorizedResponse,
+  ApiVoidResponseDto,
+  ResponseMessage,
+} from '../common';
 import { AccessTokenGuard, RefreshTokenGuard } from './guards';
-import { CurrentUser } from './decorators';
+import {
+  ApiAccessCookieAuth,
+  ApiRefreshCookieAuth,
+  CurrentUser,
+} from './decorators';
 import type { JwtPayload } from './types';
 import {
   ACCESS_TOKEN_COOKIE,
@@ -43,8 +54,14 @@ export class AuthController {
 
   @Throttle(AUTH_THROTTLE)
   @Post('signup')
-  @ApiOperation({ summary: '회원가입' })
-  @ApiResponseDto(AuthUserResponseDto)
+  @ApiOperation({
+    summary: '회원가입',
+    description: 'access_token·refresh_token 쿠키를 함께 발급한다.',
+  })
+  @ApiCreatedResponseDto(AuthUserResponseDto)
+  @ApiErrorResponse(HttpStatus.BAD_REQUEST, '사용할 수 없는 이메일 도메인')
+  @ApiErrorResponse(HttpStatus.CONFLICT, '이미 가입된 이메일')
+  @ApiErrorResponse(HttpStatus.TOO_MANY_REQUESTS, '분당 5회 초과')
   @ResponseMessage('회원가입이 완료되었습니다.')
   async signUp(
     @Body() createUserDto: CreateUserDto,
@@ -62,8 +79,14 @@ export class AuthController {
   @Throttle(AUTH_THROTTLE)
   @Post('login')
   @HttpCode(HttpStatus.OK)
-  @ApiOperation({ summary: '로그인' })
+  @ApiOperation({
+    summary: '로그인',
+    description: 'access_token·refresh_token 쿠키를 함께 발급한다.',
+  })
   @ApiResponseDto(AuthUserResponseDto)
+  @ApiErrorResponse(HttpStatus.UNAUTHORIZED, '이메일 또는 비밀번호 불일치')
+  @ApiErrorResponse(HttpStatus.CONFLICT, '이미 다른 방식으로 가입된 이메일')
+  @ApiErrorResponse(HttpStatus.TOO_MANY_REQUESTS, '분당 5회 초과')
   @ResponseMessage('로그인되었습니다.')
   async login(
     @Body() loginDto: LoginDto,
@@ -143,7 +166,17 @@ export class AuthController {
   @Post('refresh')
   @HttpCode(HttpStatus.OK)
   @UseGuards(RefreshTokenGuard)
-  @ApiOperation({ summary: 'access token 재발급' })
+  @ApiRefreshCookieAuth()
+  @ApiOperation({
+    summary: 'access token 재발급',
+    description:
+      'refresh_token 쿠키로 access_token만 다시 심는다. 응답 data는 없다.',
+  })
+  @ApiVoidResponseDto('access_token 쿠키 재발급됨 (응답 data 없음)')
+  @ApiErrorResponse(
+    HttpStatus.UNAUTHORIZED,
+    'refresh_token 쿠키가 없거나 만료됨',
+  )
   @ResponseMessage('access token이 재발급되었습니다.')
   refresh(
     @CurrentUser() user: JwtPayload,
@@ -160,8 +193,10 @@ export class AuthController {
   // 클라이언트의 공통 401 인터셉터(리프레시 시도 → 실패 시 로그인 페이지로)가 처리하도록 함.
   @Get('me')
   @UseGuards(AccessTokenGuard)
+  @ApiAccessCookieAuth()
   @ApiOperation({ summary: '내 정보 조회' })
   @ApiResponseDto(AuthUserResponseDto)
+  @ApiUnauthorizedResponse()
   @ResponseMessage('로그인 상태를 조회했습니다.')
   async me(@CurrentUser() user: JwtPayload) {
     return {
@@ -172,7 +207,13 @@ export class AuthController {
   @Post('logout')
   @HttpCode(HttpStatus.OK)
   @UseGuards(AccessTokenGuard)
-  @ApiOperation({ summary: '로그아웃' })
+  @ApiAccessCookieAuth()
+  @ApiOperation({
+    summary: '로그아웃',
+    description: 'access_token·refresh_token 쿠키를 모두 지운다.',
+  })
+  @ApiVoidResponseDto('쿠키 삭제됨 (응답 data 없음)')
+  @ApiUnauthorizedResponse()
   @ResponseMessage('로그아웃되었습니다.')
   logout(@Res({ passthrough: true }) res: Response) {
     res.clearCookie(ACCESS_TOKEN_COOKIE, this.baseCookieOptions());

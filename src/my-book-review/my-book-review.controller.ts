@@ -4,6 +4,7 @@ import {
   Controller,
   Delete,
   Get,
+  HttpStatus,
   Param,
   ParseIntPipe,
   Patch,
@@ -20,11 +21,20 @@ import {
   MyBookReviewListResponseDto,
   MyBookReviewResponseDto,
 } from './dto/my-book-review-response.dto';
-import { ApiResponseDto, ApiUnauthorizedResponse } from '../common';
+import {
+  ApiCreatedResponseDto,
+  ApiErrorResponse,
+  ApiResponseDto,
+  ApiUnauthorizedResponse,
+  ApiVoidResponseDto,
+} from '../common';
 import { AccessTokenGuard } from '../auth/guards';
-import { CurrentUser } from '../auth/decorators';
+import { ApiAccessCookieAuth, CurrentUser } from '../auth/decorators';
+
+const REVIEW_NOT_FOUND = '한줄평이 없거나 본인 것이 아님';
 
 @ApiTags('MyBookReview')
+@ApiAccessCookieAuth()
 @Controller('my-book-review')
 export class MyBookReviewController {
   constructor(private readonly myBookReviewService: MyBookReviewService) {}
@@ -32,7 +42,10 @@ export class MyBookReviewController {
   @Post()
   @UseGuards(AccessTokenGuard)
   @ApiOperation({ summary: '한줄평 작성 (MyBook당 1개)' })
-  @ApiResponseDto(MyBookReviewResponseDto)
+  @ApiCreatedResponseDto(MyBookReviewResponseDto)
+  @ApiUnauthorizedResponse()
+  @ApiErrorResponse(HttpStatus.NOT_FOUND, '서재 항목이 없거나 본인 것이 아님')
+  @ApiErrorResponse(HttpStatus.CONFLICT, '이미 작성된 한줄평이 있음')
   create(@CurrentUser() user: JwtPayload, @Body() dto: CreateMyBookReviewDto) {
     return this.myBookReviewService.create(user.sub, dto);
   }
@@ -44,6 +57,7 @@ export class MyBookReviewController {
       '내가 작성한 한줄평 목록 조회 (책/공개여부 무관하게 전부, 페이지네이션)',
   })
   @ApiResponseDto(MyBookReviewListResponseDto)
+  @ApiUnauthorizedResponse()
   findAll(
     @CurrentUser() user: JwtPayload,
     @Query() query: FindMyBookReviewQueryDto,
@@ -59,6 +73,7 @@ export class MyBookReviewController {
       '내가 좋아요 누른 한줄평 목록 (접근 가능한 것만 — 좋아요 이후 비공개로 바뀐 남의 글은 제외)',
   })
   @ApiResponseDto(MyBookReviewListResponseDto)
+  @ApiUnauthorizedResponse()
   findLiked(
     @CurrentUser() user: JwtPayload,
     @Query() query: FindMyBookReviewQueryDto,
@@ -73,6 +88,7 @@ export class MyBookReviewController {
     summary: '내가 댓글단 한줄평 목록 (접근 가능한 것만, 리뷰당 1건)',
   })
   @ApiResponseDto(MyBookReviewListResponseDto)
+  @ApiUnauthorizedResponse()
   findCommented(
     @CurrentUser() user: JwtPayload,
     @Query() query: FindMyBookReviewQueryDto,
@@ -108,7 +124,13 @@ export class MyBookReviewController {
     summary:
       '내가 작성한 한줄평 단건 조회 (남의 공개 한줄평은 GET /public-review/:id 사용)',
   })
+  @ApiParam({
+    name: 'id',
+    description: 'MyBookReview ID (MyBook ID가 아니다 — by-my-book 참고)',
+  })
   @ApiResponseDto(MyBookReviewResponseDto)
+  @ApiUnauthorizedResponse()
+  @ApiErrorResponse(HttpStatus.NOT_FOUND, REVIEW_NOT_FOUND)
   findOne(
     @CurrentUser() user: JwtPayload,
     @Param('id', ParseIntPipe) id: number,
@@ -119,7 +141,10 @@ export class MyBookReviewController {
   @Patch(':id')
   @UseGuards(AccessTokenGuard)
   @ApiOperation({ summary: '한줄평 수정' })
+  @ApiParam({ name: 'id', description: 'MyBookReview ID' })
   @ApiResponseDto(MyBookReviewResponseDto)
+  @ApiUnauthorizedResponse()
+  @ApiErrorResponse(HttpStatus.NOT_FOUND, REVIEW_NOT_FOUND)
   update(
     @CurrentUser() user: JwtPayload,
     @Param('id', ParseIntPipe) id: number,
@@ -131,6 +156,10 @@ export class MyBookReviewController {
   @Delete(':id')
   @UseGuards(AccessTokenGuard)
   @ApiOperation({ summary: '한줄평 삭제' })
+  @ApiParam({ name: 'id', description: 'MyBookReview ID' })
+  @ApiVoidResponseDto('삭제됨')
+  @ApiUnauthorizedResponse()
+  @ApiErrorResponse(HttpStatus.NOT_FOUND, REVIEW_NOT_FOUND)
   remove(
     @CurrentUser() user: JwtPayload,
     @Param('id', ParseIntPipe) id: number,
