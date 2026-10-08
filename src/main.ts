@@ -1,6 +1,5 @@
 import { NestFactory } from '@nestjs/core';
 import { AppModule } from './app.module';
-import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
 import {
   BadRequestException,
   INestApplication,
@@ -11,6 +10,7 @@ import cookieParser from 'cookie-parser';
 import helmet from 'helmet';
 import type { CorsOptions } from '@nestjs/common/interfaces/external/cors-options.interface';
 import { loggingMiddleware } from './common';
+import { setUpSwagger } from './swagger';
 
 // 처리되지 않은 동기 예외/Promise rejection이 발생하면 프로세스 상태를 더
 // 신뢰할 수 없으므로, 조용히 계속 도는 대신 스택트레이스를 로깅하고 종료시킴 -
@@ -79,18 +79,6 @@ function setUpCors(app: INestApplication) {
   app.enableCors(corsOptions);
 }
 
-function setUpSwagger(app: INestApplication) {
-  const config = new DocumentBuilder()
-    .setTitle('API Document')
-    .setDescription('API 설명')
-    .setVersion('1.0')
-    .addBearerAuth()
-    .build();
-
-  const document = SwaggerModule.createDocument(app, config);
-
-  SwaggerModule.setup('api', app, document);
-}
 async function bootstrap() {
   setUpProcessErrorHandlers();
 
