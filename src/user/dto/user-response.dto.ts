@@ -11,7 +11,12 @@ export class UserResponseDto {
   })
   email: string;
 
-  @ApiProperty({ description: '닉네임', nullable: true, example: '홍길동' })
+  @ApiProperty({
+    description: '닉네임',
+    nullable: true,
+    type: String,
+    example: '홍길동',
+  })
   name: string | null;
 
   @ApiProperty({ description: '생년월일', nullable: true, type: Date })
@@ -23,6 +28,10 @@ export class UserResponseDto {
   @ApiProperty({ description: '가입 경로', enum: Provider })
   provider: Provider;
 
-  @ApiProperty({ description: '프로필 이미지 URL', nullable: true })
+  @ApiProperty({
+    description: '프로필 이미지 URL',
+    nullable: true,
+    type: String,
+  })
   profile: string | null;
 }

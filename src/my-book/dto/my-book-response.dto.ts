@@ -10,7 +10,7 @@ export class MyBookDetailBookDto {
   @ApiProperty({ description: '책 제목', example: '미움받을 용기' })
   title: string;
 
-  @ApiProperty({ description: '부제', nullable: true })
+  @ApiProperty({ description: '부제', nullable: true, type: String })
   subTitle: string | null;
 
   @ApiProperty({ description: 'ISBN', example: '9788996991342' })
@@ -30,7 +30,7 @@ export class MyBookDetailBookDto {
   })
   translators: string[];
 
-  @ApiProperty({ description: '출판사', nullable: true })
+  @ApiProperty({ description: '출판사', nullable: true, type: String })
   publisher: string | null;
 
   @ApiProperty(BookThumbnailApiProperty)
@@ -39,16 +39,16 @@ export class MyBookDetailBookDto {
   @ApiProperty(BookCoverImageApiProperty)
   coverImage: string | null;
 
-  @ApiProperty({ description: '책 설명', nullable: true })
+  @ApiProperty({ description: '책 설명', nullable: true, type: String })
   description: string | null;
 
-  @ApiProperty({ description: '상세 URL', nullable: true })
+  @ApiProperty({ description: '상세 URL', nullable: true, type: String })
   url: string | null;
 
   @ApiProperty({ description: '출판일', nullable: true, type: Date })
   pubDate: Date | null;
 
-  @ApiProperty({ description: '총 페이지 수', nullable: true })
+  @ApiProperty({ description: '총 페이지 수', nullable: true, type: Number })
   totalPage: number | null;
 }
 
@@ -59,7 +59,11 @@ export class MyBookListItemBookDto {
   @ApiProperty(BookThumbnailApiProperty)
   thumbnail: string | null;
 
-  @ApiProperty({ description: '총 페이지 수 (진행률 계산용)', nullable: true })
+  @ApiProperty({
+    description: '총 페이지 수 (진행률 계산용)',
+    nullable: true,
+    type: Number,
+  })
   totalPage: number | null;
 }
 

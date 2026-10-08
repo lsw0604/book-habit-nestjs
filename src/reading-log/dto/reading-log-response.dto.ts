@@ -1,4 +1,4 @@
-import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
+import { ApiProperty } from '@nestjs/swagger';
 import { PaginationMeta, PaginationResponse } from '../../common/pagination';
 import { BookThumbnailApiProperty } from '../../books/dto/book-image.api-property';
 
@@ -27,9 +27,10 @@ export class ReadingLogResponseDto {
   @ApiProperty({ description: '기록 날짜', type: Date })
   date: Date;
 
-  @ApiPropertyOptional({
+  @ApiProperty({
     description: '메모 (읽은 내용, 그날의 감상/기분 등 자유 서술)',
     nullable: true,
+    type: String,
   })
   memo: string | null;
 

@@ -19,15 +19,25 @@ export class NlLookupResDto {
   @ApiProperty({
     description: '저자 목록',
     example: ['기시미 이치로', '고가 후미타케'],
+    type: [String],
   })
   @Expose()
   authors: string[];
 
-  @ApiProperty({ description: '번역자 목록', example: ['전경아'] })
+  @ApiProperty({
+    description: '번역자 목록',
+    example: ['전경아'],
+    type: [String],
+  })
   @Expose()
   translators: string[];
 
-  @ApiProperty({ description: '출판사', nullable: true, example: '인플루엔셜' })
+  @ApiProperty({
+    description: '출판사',
+    nullable: true,
+    type: String,
+    example: '인플루엔셜',
+  })
   @Expose()
   publisher: string | null;
 
@@ -35,29 +45,30 @@ export class NlLookupResDto {
   @Expose()
   pubDate: Date | null;
 
-  @ApiProperty({ description: '책 설명', nullable: true })
+  @ApiProperty({ description: '책 설명', nullable: true, type: String })
   @Expose()
   description: string | null;
 
-  @ApiProperty({ description: '썸네일 이미지', nullable: true })
+  @ApiProperty({ description: '썸네일 이미지', nullable: true, type: String })
   @Expose()
   thumbnail: string | null;
 
-  @ApiProperty({ description: '커버 이미지', nullable: true })
+  @ApiProperty({ description: '커버 이미지', nullable: true, type: String })
   @Expose()
   coverImage: string | null;
 
-  @ApiProperty({ description: '부제', nullable: true })
+  @ApiProperty({ description: '부제', nullable: true, type: String })
   @Expose()
   subTitle: string | null;
 
-  @ApiProperty({ description: '총 페이지 수', nullable: true })
+  @ApiProperty({ description: '총 페이지 수', nullable: true, type: Number })
   @Expose()
   totalPage: number | null;
 
   @ApiProperty({
     description: '상세 URL (국립중앙도서관 API 미제공)',
     nullable: true,
+    type: String,
   })
   @Expose()
   url: string | null;

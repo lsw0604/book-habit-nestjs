@@ -51,6 +51,7 @@ export class KakaoBookItemDto {
   @ApiProperty({
     description: '도서 소개 (카카오가 잘라서 줌)',
     nullable: true,
+    type: String,
   })
   @Expose()
   description: string | null;
@@ -64,7 +65,7 @@ export class KakaoBookItemDto {
   @Expose()
   pubDate: string | null;
 
-  @ApiProperty({ description: '출판사', nullable: true })
+  @ApiProperty({ description: '출판사', nullable: true, type: String })
   @Expose()
   publisher: string | null;
 
@@ -72,7 +73,7 @@ export class KakaoBookItemDto {
   @Expose()
   thumbnail: string | null;
 
-  @ApiProperty({ description: '판매 상태', nullable: true })
+  @ApiProperty({ description: '판매 상태', nullable: true, type: String })
   @Expose()
   status: string | null;
 

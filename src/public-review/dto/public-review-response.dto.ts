@@ -19,10 +19,14 @@ export class PublicReviewAuthorDto {
   @ApiProperty({ description: '작성자 User ID', example: 1 })
   id: number;
 
-  @ApiProperty({ description: '작성자 이름', nullable: true })
+  @ApiProperty({ description: '작성자 이름', nullable: true, type: String })
   name: string | null;
 
-  @ApiProperty({ description: '작성자 프로필 이미지 URL', nullable: true })
+  @ApiProperty({
+    description: '작성자 프로필 이미지 URL',
+    nullable: true,
+    type: String,
+  })
   profile: string | null;
 }
 
