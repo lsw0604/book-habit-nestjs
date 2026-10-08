@@ -6,11 +6,12 @@ import {
   Patch,
   Param,
   Delete,
+  HttpStatus,
   ParseIntPipe,
   Query,
   UseGuards,
 } from '@nestjs/common';
-import { ApiOperation, ApiTags } from '@nestjs/swagger';
+import { ApiOperation, ApiParam, ApiTags } from '@nestjs/swagger';
 import { MyBookService } from './my-book.service';
 import { CreateMyBookDto } from './dto/create-my-book.dto';
 import { UpdateMyBookDto } from './dto/update-my-book.dto';
@@ -20,12 +21,19 @@ import {
   MyBookListResponseDto,
   MyBookResponseDto,
 } from './dto/my-book-response.dto';
-import { ApiResponseDto } from '../common';
+import {
+  ApiCreatedResponseDto,
+  ApiErrorResponse,
+  ApiResponseDto,
+  ApiUnauthorizedResponse,
+  ApiVoidResponseDto,
+} from '../common';
 import { AccessTokenGuard } from '../auth/guards';
-import { CurrentUser } from '../auth/decorators';
+import { ApiAccessCookieAuth, CurrentUser } from '../auth/decorators';
 import type { JwtPayload } from '../auth/types';
 
 @ApiTags('MyBook')
+@ApiAccessCookieAuth()
 @UseGuards(AccessTokenGuard)
 @Controller('my-book')
 export class MyBookController {
@@ -33,7 +41,10 @@ export class MyBookController {
 
   @Post()
   @ApiOperation({ summary: '서재에 책 등록' })
-  @ApiResponseDto(MyBookResponseDto)
+  @ApiCreatedResponseDto(MyBookResponseDto)
+  @ApiUnauthorizedResponse()
+  @ApiErrorResponse(HttpStatus.BAD_REQUEST, '유효하지 않은 ISBN')
+  @ApiErrorResponse(HttpStatus.CONFLICT, '이미 서재에 등록된 책')
   create(
     @CurrentUser() user: JwtPayload,
     @Body() createMyBookDto: CreateMyBookDto,
@@ -50,6 +61,7 @@ export class MyBookController {
     summary: '서재 목록 조회 (상태/평점/리뷰 여부 필터, 정렬)',
   })
   @ApiResponseDto(MyBookListResponseDto)
+  @ApiUnauthorizedResponse()
   findAll(@CurrentUser() user: JwtPayload, @Query() query: FindMyBookQueryDto) {
     // page/limit/order의 기본값은 FindMyBookQueryDto 필드 초기값이 유일한
     // 소스다 - 여기서 또 기본값을 주면 Swagger 문서와 실제 동작이 따로 놀 수 있다.
@@ -66,9 +78,12 @@ export class MyBookController {
   // ':id'(ParseIntPipe)보다 세그먼트가 하나 더 많아 라우트가 겹치지 않는다.
   @Get('by-isbn/:isbn')
   @ApiOperation({ summary: 'ISBN으로 내 서재 등록 여부 조회' })
+  @ApiParam({ name: 'isbn', description: 'ISBN-10/13 (하이픈 허용)' })
   @ApiResponseDto(MyBookResponseDto, {
     description: '해당 책이 서재에 없으면 data는 null',
   })
+  @ApiUnauthorizedResponse()
+  @ApiErrorResponse(HttpStatus.BAD_REQUEST, '유효하지 않은 ISBN')
   findByIsbn(
     @CurrentUser() user: JwtPayload,
     @Param() { isbn }: MyBookIsbnParamDto,
@@ -78,7 +93,10 @@ export class MyBookController {
 
   @Get(':id')
   @ApiOperation({ summary: '서재 항목 단건 조회' })
+  @ApiParam({ name: 'id', description: 'MyBook ID' })
   @ApiResponseDto(MyBookResponseDto)
+  @ApiUnauthorizedResponse()
+  @ApiErrorResponse(HttpStatus.NOT_FOUND, '서재 항목이 없거나 본인 것이 아님')
   findOne(
     @CurrentUser() user: JwtPayload,
     @Param('id', ParseIntPipe) id: number,
@@ -88,7 +106,14 @@ export class MyBookController {
 
   @Patch(':id')
   @ApiOperation({ summary: '서재 항목 수정 (상태 전환/평점/진행 페이지)' })
+  @ApiParam({ name: 'id', description: 'MyBook ID' })
   @ApiResponseDto(MyBookResponseDto)
+  @ApiErrorResponse(
+    HttpStatus.BAD_REQUEST,
+    'currentPage가 총 페이지 수를 초과, 또는 totalPage를 기존 기록의 최대 endPage보다 낮게 설정',
+  )
+  @ApiUnauthorizedResponse()
+  @ApiErrorResponse(HttpStatus.NOT_FOUND, '서재 항목이 없거나 본인 것이 아님')
   update(
     @CurrentUser() user: JwtPayload,
     @Param('id', ParseIntPipe) id: number,
@@ -98,7 +123,15 @@ export class MyBookController {
   }
 
   @Delete(':id')
-  @ApiOperation({ summary: '서재 항목 삭제' })
+  @ApiOperation({
+    summary: '서재 항목 삭제',
+    description:
+      '딸린 ReadingLog·한줄평·태그가 함께 삭제된다(MyBook에서 Cascade).',
+  })
+  @ApiParam({ name: 'id', description: 'MyBook ID' })
+  @ApiVoidResponseDto('삭제됨')
+  @ApiUnauthorizedResponse()
+  @ApiErrorResponse(HttpStatus.NOT_FOUND, '서재 항목이 없거나 본인 것이 아님')
   remove(
     @CurrentUser() user: JwtPayload,
     @Param('id', ParseIntPipe) id: number,
