@@ -18,6 +18,7 @@ import { PublicTagModule } from './public-tag/public-tag.module';
 import { MyBookTagModule } from './my-book-tag/my-book-tag.module';
 import { QuoteModule } from './quote/quote.module';
 import { ReadingGoalModule } from './reading-goal/reading-goal.module';
+import { BookNoteModule } from './book-note/book-note.module';
 import { HealthModule } from './health/health.module';
 import { envValidationSchema } from './config/env-validation.schema';
 
@@ -45,6 +46,7 @@ import { envValidationSchema } from './config/env-validation.schema';
     MyBookTagModule,
     QuoteModule,
     ReadingGoalModule,
+    BookNoteModule,
     HealthModule,
   ],
   providers: [
