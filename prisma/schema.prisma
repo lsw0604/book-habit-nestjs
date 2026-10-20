@@ -29,6 +29,15 @@ enum ReadingGoalMetric {
   MINUTES
 }
 
+// 독서 노트 기록법 템플릿. 섹션 구성은 src/book-note/book-note.templates.ts가 정한다.
+enum BookNoteTemplate {
+  ONE_SENTENCE
+  BON_KKAE_JEOK
+  KWL
+  THREE_TWO_ONE
+  FREE
+}
+
 model Book {
   id          Int       @id @default(autoincrement())
   title       String
@@ -84,6 +93,7 @@ model MyBook {
 
   readingLog ReadingLog[]
   review     MyBookReview?
+  note       BookNote?
   tag        MyBookTag[]
 
   createdAt DateTime @default(now())
@@ -200,4 +210,31 @@ model ReadingGoal {
   user        User              @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@unique([userId, year, month, metric])
+}
+
+// 책 한 권 단위 개인 노트(비공개). MyBook당 하나.
+// userId FK를 따로 두지 않는다 - MyBook(userId, Cascade)에서 cascade가 이미 오므로 하나 더 걸면
+// MySQL이 "multiple cascade paths"로 거부한다. 소유권은 MyBook을 통해서만 확인한다.
+model BookNote {
+  id        Int               @id @default(autoincrement())
+  myBookId  Int               @unique
+  template  BookNoteTemplate
+  sections  BookNoteSection[]
+  createdAt DateTime          @default(now())
+  updatedAt DateTime          @updatedAt
+  myBook    MyBook            @relation(fields: [myBookId], references: [id], onDelete: Cascade)
+}
+
+// 노트의 섹션 하나 = 한 행. key 목록은 템플릿 정의가 정하고 서비스가 검증한다.
+// 빈 섹션은 행을 두지 않는다(응답에서 템플릿의 모든 섹션을 채워 보낸다).
+// 섹션마다 updatedAt이 있어 "읽기 전/읽은 후"처럼 나뉘는 기록의 시점이 남는다.
+model BookNoteSection {
+  id         Int      @id @default(autoincrement())
+  bookNoteId Int
+  key        String   @db.VarChar(30)
+  content    String   @db.Text
+  updatedAt  DateTime @updatedAt
+  bookNote   BookNote @relation(fields: [bookNoteId], references: [id], onDelete: Cascade)
+
+  @@unique([bookNoteId, key])
 }
