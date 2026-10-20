@@ -603,6 +603,17 @@ describe('MyBookService', () => {
       },
     );
 
+    it('목록 항목의 책 정보에 isbn을 담는다(클라이언트가 검색 결과와 대조한다)', async () => {
+      mockList();
+
+      await service.findAll(7, undefined, options);
+
+      const args = firstCallArg(prismaService.myBook.findMany) as {
+        select: { book: { select: Record<string, boolean> } };
+      };
+      expect(args.select.book.select.isbn).toBe(true);
+    });
+
     it('페이지네이션 skip/take와 meta를 함께 계산한다', async () => {
       const items = [{ id: 1 }, { id: 2 }];
       mockList(items, 25);

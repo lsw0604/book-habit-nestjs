@@ -40,6 +40,9 @@ export const MyBooksListSelect = {
       title: true,
       thumbnail: true,
       totalPage: true, // UI 진행률용
+      // 클라이언트가 검색 결과와 대조해 "이미 담은 책" 배지를 붙인다. 서재 목록은
+      // 한 번에 전부 받으므로(limit 2000) 별도 일괄 조회 API 없이 여기서 해결한다.
+      isbn: true,
     },
   },
 } satisfies Prisma.MyBookSelect;
