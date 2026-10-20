@@ -85,7 +85,6 @@ describe('NlBookSearchService', () => {
 
     const result = await service.getByIsbn('9788996991342');
 
-    expect(result.isbn).toBe('9788996991342');
     expect(result.title).toBe('미움받을 용기');
     expect(httpService.get).toHaveBeenCalledWith(
       'https://www.nl.go.kr/seoji/SearchApi.do',

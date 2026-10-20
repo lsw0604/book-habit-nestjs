@@ -13,9 +13,9 @@ export class BookLookupResDto {
   translators: string[];
   publisher: string | null;
   pubDate: Date | null;
-  description: string | null;
   thumbnail: string | null;
   coverImage: string | null;
+  // YES24 상품 링크만 담는다. 각 provider는 null로 두고 BookLookupService가 채운다.
   url: string | null;
   totalPage: number | null;
 }

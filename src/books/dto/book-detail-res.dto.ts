@@ -1,5 +1,6 @@
 import { ApiProperty } from '@nestjs/swagger';
 import type { Book } from '@prisma/client';
+import { formatDateOnly } from '../../common';
 import type { BookLookupResDto } from './book-lookup-res.dto';
 import {
   BookCoverImageApiProperty,
@@ -41,11 +42,13 @@ export class BookDetailResDto {
   @ApiProperty({ description: '출판사', type: String, nullable: true })
   publisher: string | null;
 
-  @ApiProperty({ description: '출판일', type: Date, nullable: true })
-  pubDate: Date | null;
-
-  @ApiProperty({ description: '책 소개', type: String, nullable: true })
-  description: string | null;
+  @ApiProperty({
+    description: '출판일 (YYYY-MM-DD)',
+    type: String,
+    nullable: true,
+    example: '2014-11-17',
+  })
+  pubDate: string | null;
 
   @ApiProperty(BookThumbnailApiProperty)
   thumbnail: string | null;
@@ -53,7 +56,14 @@ export class BookDetailResDto {
   @ApiProperty(BookCoverImageApiProperty)
   coverImage: string | null;
 
-  @ApiProperty({ description: '상세 URL', type: String, nullable: true })
+  @ApiProperty({
+    description:
+      'YES24 상품 상세 링크. YES24에 없는 책이면 null. totalPage가 YES24에서 온 값일 수 있으므로, ' +
+      'YES24 Open API 약관(제6조)에 따라 이 값이 있으면 화면에 "정보 제공: YES24" 출처와 이 링크를 함께 표시해야 한다.',
+    type: String,
+    nullable: true,
+    example: 'https://www.yes24.com/product/goods/15058512',
+  })
   url: string | null;
 
   @ApiProperty({ description: '총 페이지 수', type: Number, nullable: true })
@@ -67,8 +77,7 @@ export class BookDetailResDto {
       authors: toStringArray(book.authors),
       translators: toStringArray(book.translators),
       publisher: book.publisher,
-      pubDate: book.pubDate,
-      description: book.description,
+      pubDate: formatDateOnly(book.pubDate),
       thumbnail: book.thumbnail,
       coverImage: book.coverImage,
       url: book.url,

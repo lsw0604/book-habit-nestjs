@@ -1,33 +1,28 @@
-import { BookLookupResDto } from '../../dto/book-lookup-res.dto';
+import type { BookMetadataPatch } from '../book-metadata-provider';
 import { parseUtcDate } from '../book-metadata.util';
 import { KakaoDocument } from './kakao.types';
 
 // 카카오 표지 원본이 있는 CDN. HTTPS로도 같은 이미지를 준다(2026-09-30 확인).
 const DAUM_CDN_HOST = 't1.daumcdn.net';
 
-export class KakaoLookupResDto extends BookLookupResDto {
-  /** isbn은 호출자가 이미 판별한 ISBN-13을 넘긴다 (parseKakaoIdentifier 결과). */
-  static from(doc: KakaoDocument, isbn: string): KakaoLookupResDto {
+/**
+ * 카카오 문서 → Book 필드 patch. 카카오가 주지 않는 부제·쪽수·출처 링크는 키를 두지 않는다
+ * (카카오의 url은 다음 책 검색 페이지라 Book.url에 쓰지 않는다). 출처 규칙은 BOOK_MERGE_POLICY.
+ */
+export class KakaoLookupResDto {
+  static from(doc: KakaoDocument): BookMetadataPatch {
     const thumbnail = doc.thumbnail || null;
 
     return {
-      isbn,
       title: doc.title,
-      // 카카오는 부제를 따로 주지 않는다. BookLookupService가 NL에서 보충한다.
-      subTitle: null,
       authors: doc.authors,
       translators: doc.translators,
       publisher: doc.publisher || null,
       // "2014-11-17T00:00:00.000+09:00"(KST 자정)을 new Date()로 바꾸면 UTC로
       // 11월 16일이 되어 @db.Date에 하루 전으로 저장된다. 날짜 부분만 쓴다.
       pubDate: parseUtcDate(doc.datetime?.slice(0, 10)),
-      // 카카오는 소개를 250자 안팎에서 잘라 준다(검색 결과 미리보기라 늘리는 옵션이 없다). BookLookupService가 NL 전문으로 대체한다.
-      description: doc.contents || null,
       thumbnail,
       coverImage: KakaoLookupResDto.toOriginalCover(thumbnail),
-      url: doc.url?.replace(/&amp;/g, '&') || null,
-      // 카카오는 페이지 수를 주지 않는다. BookLookupService가 NL에서 보충한다.
-      totalPage: null,
     };
   }
 
