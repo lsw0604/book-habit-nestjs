@@ -9,6 +9,11 @@ import {
 import { KakaoDocument } from './kakao.types';
 import { BookThumbnailApiProperty } from '../../dto/book-image.api-property';
 
+/**
+ * 검색 결과 한 줄. 결과 카드가 그리는 필드와 상세로 넘어갈 isbn만 보낸다. 카카오의
+ * 소개(contents)와 판매 상태(status)는 쓰는 화면이 없어 내보내지 않는다 - 이 앱은
+ * 독서 기록 앱이라 책 소개를 다루지 않는다(Book에도 소개가 없다).
+ */
 export class KakaoBookItemDto {
   @ApiProperty({
     description:
@@ -49,14 +54,6 @@ export class KakaoBookItemDto {
   translators: string[];
 
   @ApiProperty({
-    description: '도서 소개 (카카오가 잘라서 줌)',
-    nullable: true,
-    type: String,
-  })
-  @Expose()
-  description: string | null;
-
-  @ApiProperty({
     description: '출판일 (YYYY-MM-DD)',
     type: String,
     nullable: true,
@@ -73,21 +70,15 @@ export class KakaoBookItemDto {
   @Expose()
   thumbnail: string | null;
 
-  @ApiProperty({ description: '판매 상태', nullable: true, type: String })
-  @Expose()
-  status: string | null;
-
   static from(raw: KakaoDocument): KakaoBookItemDto {
     return {
       ...parseKakaoIdentifier(raw.isbn),
       title: raw.title,
       authors: raw.authors,
       translators: raw.translators,
-      description: raw.contents || null,
       pubDate: KakaoBookItemDto.toDateOnly(raw.datetime),
       publisher: raw.publisher || null,
       thumbnail: raw.thumbnail || null,
-      status: raw.status || null,
     };
   }
 

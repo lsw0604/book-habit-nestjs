@@ -11,7 +11,6 @@ export const MyBookDetailInclude = {
       publisher: true,
       thumbnail: true,
       coverImage: true,
-      description: true,
       url: true,
       pubDate: true,
       totalPage: true,

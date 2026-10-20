@@ -23,63 +23,48 @@ function realDoc(overrides: Partial<KakaoDocument> = {}): KakaoDocument {
 }
 
 describe('KakaoLookupResDto.from', () => {
-  it('실제 응답을 Book 필드로 변환한다', () => {
-    const dto = KakaoLookupResDto.from(realDoc(), '9788996991342');
+  it('실제 응답을 Book 필드 patch로 변환한다', () => {
+    const dto = KakaoLookupResDto.from(realDoc());
 
     expect(dto).toEqual({
-      isbn: '9788996991342',
       title: '미움받을 용기',
-      subTitle: null,
       authors: ['기시미 이치로', '고가 후미타케'],
       translators: ['전경아'],
       publisher: '인플루엔셜',
       pubDate: new Date('2014-11-17T00:00:00.000Z'),
-      description:
-        '어릴 때부터 성격이 어두워 사람들과 쉽게 친해지지 못하는 사람이 있다.',
       thumbnail: realDoc().thumbnail,
       coverImage:
         'https://t1.daumcdn.net/lbook/image/1467038?timestamp=20230128141840',
-      url: 'https://search.daum.net/search?w=bookpage&bookId=1467038&q=%EB%AF%B8%EC%9B%80%EB%B0%9B%EC%9D%84+%EC%9A%A9%EA%B8%B0',
-      totalPage: null,
     });
   });
 
   it('KST 자정 datetime을 하루 밀리지 않은 UTC 자정 날짜로 바꾼다', () => {
-    const dto = KakaoLookupResDto.from(realDoc(), '9788996991342');
+    const dto = KakaoLookupResDto.from(realDoc());
 
     // new Date('2014-11-17T00:00:00.000+09:00')는 2014-11-16T15:00Z라 @db.Date에 16일로 저장된다.
     expect(dto.pubDate?.toISOString()).toBe('2014-11-17T00:00:00.000Z');
   });
 
-  it('datetime/thumbnail/url이 비어 있으면 null이다', () => {
+  it('datetime/thumbnail이 비어 있으면 null이다', () => {
     const dto = KakaoLookupResDto.from(
-      realDoc({ datetime: '', thumbnail: '', url: '' }),
-      '9788996991342',
+      realDoc({ datetime: '', thumbnail: '' }),
     );
 
     expect(dto.pubDate).toBeNull();
     expect(dto.thumbnail).toBeNull();
     expect(dto.coverImage).toBeNull();
-    expect(dto.url).toBeNull();
   });
 
-  it('Book 모델에 그대로 넣을 수 있도록 Book 필드만 가진다', () => {
-    expect(
-      Object.keys(KakaoLookupResDto.from(realDoc(), '9788996991342')).sort(),
-    ).toEqual(
+  it('카카오가 주지 않는 부제·쪽수·출처 링크는 키를 두지 않는다', () => {
+    expect(Object.keys(KakaoLookupResDto.from(realDoc())).sort()).toEqual(
       [
-        'isbn',
         'title',
-        'subTitle',
         'authors',
         'translators',
         'publisher',
         'thumbnail',
         'coverImage',
-        'description',
-        'url',
         'pubDate',
-        'totalPage',
       ].sort(),
     );
   });

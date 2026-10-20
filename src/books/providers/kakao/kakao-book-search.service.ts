@@ -12,13 +12,18 @@ import { PaginationUtil } from '../../../common';
 import { KAKAO_MAX_PAGE } from './kakao.constants';
 import { parseKakaoIdentifier } from './kakao-identifier.util';
 import { KakaoLookupResDto } from './kakao-lookup-res.dto';
+import type {
+  BookMetadataPatch,
+  BookMetadataProvider,
+} from '../book-metadata-provider';
 import { ResponseKakaoSearchBook } from './kakao.types';
 import { KakaoSearchReqDto } from './kakao-search-req.dto';
 import { KakaoBookItemDto } from './kakao-search-res.dto';
 import { KakaoSearchResultDto } from './kakao-search-result.dto';
 
 @Injectable()
-export class KakaoBookSearchService {
+export class KakaoBookSearchService implements BookMetadataProvider {
+  readonly source = 'kakao' as const;
   private readonly logger = new Logger(KakaoBookSearchService.name);
   private readonly BASE_URL = 'https://dapi.kakao.com';
 
@@ -81,7 +86,7 @@ export class KakaoBookSearchService {
    * ISBN-13으로 책 한 권을 조회해 Book 모양으로 돌려준다.
    * target=isbn 검색은 여러 권을 줄 수 있어서, isbn이 정확히 같은 문서만 쓴다.
    */
-  public async getByIsbn(isbn: string): Promise<KakaoLookupResDto> {
+  public async getByIsbn(isbn: string): Promise<BookMetadataPatch> {
     const queryParams = new URLSearchParams();
     queryParams.append('query', isbn);
     queryParams.append('target', 'isbn');
@@ -95,7 +100,7 @@ export class KakaoBookSearchService {
       throw new NotFoundException('해당 ISBN을 가진 책을 찾을 수 없습니다.');
     }
 
-    return KakaoLookupResDto.from(doc, isbn);
+    return KakaoLookupResDto.from(doc);
   }
 
   private async request(
