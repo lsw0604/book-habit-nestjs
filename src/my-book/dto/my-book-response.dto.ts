@@ -74,6 +74,13 @@ export class MyBookListItemBookDto {
     type: Number,
   })
   totalPage: number | null;
+
+  @ApiProperty({
+    description:
+      'ISBN13. 검색 결과(GET /books의 isbn)와 같은 정규화 형식이라, 문자열 비교로 서재 등록 여부를 알 수 있다',
+    example: '9788996991342',
+  })
+  isbn: string;
 }
 
 export class MyBookCountDto {
