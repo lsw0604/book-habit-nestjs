@@ -8,6 +8,7 @@ import { PrismaService } from '../prisma/prisma.service';
 import { BooksService } from '../books/books.service';
 import {
   assertWithinTotalPage,
+  formatDateOnly,
   PaginationUtil,
   PrismaErrorUtil,
   resolveTotalPage,
@@ -110,12 +111,14 @@ export class MyBookService {
    * MyBookDetailInclude로 조회한 결과를 응답 형태로 변환한다.
    * review는 1:1 관계라 Prisma _count로 집계할 수 없으므로,
    * readingLog와 같은 위치(_count)에서 0/1로 존재 여부만 노출하도록 애플리케이션 레벨에서 매핑한다.
+   * book.pubDate는 검색 결과·도서 상세와 같은 'YYYY-MM-DD'로 바꾼다(formatDateOnly 참고).
    */
   private toDetailResponse(myBook: MyBookDetail) {
-    const { review, _count, ...rest } = myBook;
+    const { review, _count, book, ...rest } = myBook;
 
     return {
       ...rest,
+      book: { ...book, pubDate: formatDateOnly(book.pubDate) },
       _count: {
         readingLog: _count.readingLog,
         review: review ? 1 : 0,

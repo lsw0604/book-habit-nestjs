@@ -39,14 +39,23 @@ export class MyBookDetailBookDto {
   @ApiProperty(BookCoverImageApiProperty)
   coverImage: string | null;
 
-  @ApiProperty({ description: '책 설명', nullable: true, type: String })
-  description: string | null;
-
-  @ApiProperty({ description: '상세 URL', nullable: true, type: String })
+  @ApiProperty({
+    description:
+      'YES24 상품 상세 링크. YES24에 없는 책이면 null. 이 값이 있으면 YES24 Open API 약관(제6조)에 따라 ' +
+      '화면에 "정보 제공: YES24" 출처와 이 링크를 함께 표시해야 한다(totalPage가 YES24에서 온 값일 수 있다).',
+    nullable: true,
+    type: String,
+    example: 'https://www.yes24.com/product/goods/15058512',
+  })
   url: string | null;
 
-  @ApiProperty({ description: '출판일', nullable: true, type: Date })
-  pubDate: Date | null;
+  @ApiProperty({
+    description: '출판일 (YYYY-MM-DD)',
+    nullable: true,
+    type: String,
+    example: '2014-11-17',
+  })
+  pubDate: string | null;
 
   @ApiProperty({ description: '총 페이지 수', nullable: true, type: Number })
   totalPage: number | null;
