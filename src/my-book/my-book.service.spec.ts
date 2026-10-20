@@ -150,6 +150,21 @@ describe('MyBookService', () => {
       });
     });
 
+    it('응답의 book.pubDate는 YYYY-MM-DD 문자열이다(검색 결과·도서 상세와 같은 형식)', async () => {
+      prismaService.myBook.findFirst.mockResolvedValue(
+        fakeMyBookDetail({
+          book: {
+            totalPage: 300,
+            pubDate: new Date('2014-11-17T00:00:00.000Z'),
+          },
+        }),
+      );
+
+      const result = await service.findByIsbn(7, '9788996991342');
+
+      expect(result?.book.pubDate).toBe('2014-11-17');
+    });
+
     it('update는 선행 조회와 실제 update 양쪽 모두 userId로 스코프한다', async () => {
       prismaService.myBook.findFirst.mockResolvedValue(fakeMyBookDetail());
       prismaService.myBook.update.mockResolvedValue(fakeMyBookDetail());
