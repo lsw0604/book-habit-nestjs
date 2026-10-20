@@ -78,7 +78,6 @@ describe('NlLookupResDto.from', () => {
     const dto = NlLookupResDto.from(recentDoc());
 
     expect(dto).toMatchObject({
-      isbn: '9788924183429',
       title: '트렌드 코리아2026',
       subTitle: null,
       authors: ['고종문'],
@@ -90,28 +89,19 @@ describe('NlLookupResDto.from', () => {
     expect(dto.pubDate?.toISOString()).toBe('2025-11-17T00:00:00.000Z');
   });
 
-  it('책소개의 \\r\\n 줄바꿈을 \\n으로 정리한다', () => {
-    expect(NlLookupResDto.from(recentDoc()).description).toBe(
-      '“미래는 이미 우리 곁에 와 있다.”\n— 윌리엄 깁슨',
-    );
-  });
-
   it('오래된 책처럼 대부분 비어 있는 응답도 가능한 필드만 채운다', () => {
     const dto = NlLookupResDto.from(oldDoc());
 
     expect(dto).toEqual({
-      isbn: '9788996991342',
       title: '미움받을 용기',
       subTitle: null,
       authors: ['기시미 이치로', '고가 후미타케'],
       translators: [],
       publisher: '(주)인플루엔셜',
       pubDate: null,
-      description: null,
       thumbnail: null,
       coverImage: null,
       totalPage: null,
-      url: null,
     });
   });
 
@@ -171,10 +161,9 @@ describe('NlLookupResDto.from', () => {
     expect(dto.coverImage).toBe(url);
   });
 
-  it('Book 모델에 그대로 넣을 수 있도록 Book 필드만 가진다', () => {
+  it('NL이 주지 않는 출처 링크(url)는 키를 두지 않는다', () => {
     expect(Object.keys(NlLookupResDto.from(recentDoc())).sort()).toEqual(
       [
-        'isbn',
         'title',
         'subTitle',
         'authors',
@@ -182,8 +171,6 @@ describe('NlLookupResDto.from', () => {
         'publisher',
         'thumbnail',
         'coverImage',
-        'description',
-        'url',
         'pubDate',
         'totalPage',
       ].sort(),

@@ -146,6 +146,27 @@ describe('KakaoBookSearchService', () => {
       expect(item.pubDate).toBe('2014-11-17');
     });
 
+    it('검색 아이템은 결과 카드에 필요한 필드만 가진다(소개·판매 상태는 내보내지 않는다)', async () => {
+      httpService.get.mockReturnValue(
+        of(fakeAxiosResponse(fakeResponse([fakeDocument()]))),
+      );
+
+      const [item] = (await service.search({ query: '용기' })).items;
+
+      expect(Object.keys(item).sort()).toEqual(
+        [
+          'isbn',
+          'identifierType',
+          'title',
+          'authors',
+          'translators',
+          'pubDate',
+          'publisher',
+          'thumbnail',
+        ].sort(),
+      );
+    });
+
     it('잡지(ISSN)는 목록에서 빼지 않고 isbn null로 표시만 한다', async () => {
       httpService.get.mockReturnValue(
         of(
@@ -286,7 +307,6 @@ describe('KakaoBookSearchService', () => {
       const params = requestedParams(httpService.get);
       expect(params.get('query')).toBe('9788996991342');
       expect(params.get('target')).toBe('isbn');
-      expect(result.isbn).toBe('9788996991342');
       expect(result.title).toBe('미움받을 용기');
     });
 

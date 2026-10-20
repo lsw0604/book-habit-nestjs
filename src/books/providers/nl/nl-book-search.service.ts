@@ -9,10 +9,15 @@ import { ConfigService } from '@nestjs/config';
 import { catchError, firstValueFrom } from 'rxjs';
 import type { AxiosError } from 'axios';
 import { NlLookupResDto } from './nl-lookup-res.dto';
+import type {
+  BookMetadataPatch,
+  BookMetadataProvider,
+} from '../book-metadata-provider';
 import { ResponseNlSearchBook } from './nl.types';
 
 @Injectable()
-export class NlBookSearchService {
+export class NlBookSearchService implements BookMetadataProvider {
+  readonly source = 'nl' as const;
   private readonly logger = new Logger(NlBookSearchService.name);
   private readonly BASE_URL = 'https://www.nl.go.kr/seoji/SearchApi.do';
 
@@ -21,7 +26,7 @@ export class NlBookSearchService {
     private readonly configService: ConfigService,
   ) {}
 
-  public async getByIsbn(isbn: string): Promise<NlLookupResDto> {
+  public async getByIsbn(isbn: string): Promise<BookMetadataPatch> {
     const certKey = this.configService.get<string>('NL_CERT_KEY');
 
     const { data } = await firstValueFrom(

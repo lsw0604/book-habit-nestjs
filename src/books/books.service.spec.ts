@@ -109,8 +109,7 @@ describe('BooksService', () => {
       publisher: '인플루엔셜',
       thumbnail: 'https://example.com/thumb.jpg',
       coverImage: 'https://example.com/cover.jpg',
-      description: '소개',
-      url: 'https://example.com/book',
+      url: 'https://www.yes24.com/product/goods/15058512',
       pubDate: new Date('2014-11-17T00:00:00.000Z'),
       totalPage: 336,
       createdAt: new Date(),
@@ -131,6 +130,14 @@ describe('BooksService', () => {
         title: '미움받을 용기',
         totalPage: 336,
       });
+    });
+
+    it('pubDate(@db.Date의 UTC 자정)를 검색 결과와 같은 YYYY-MM-DD 문자열로 보낸다', async () => {
+      prismaService.book.findUnique.mockResolvedValue(localBook);
+
+      const result = await service.findDetailByIsbn('9788996991342');
+
+      expect(result.pubDate).toBe('2014-11-17');
     });
 
     it('DB에 없으면 외부에서 조회해 응답하되 저장하지는 않는다', async () => {

@@ -3,7 +3,11 @@ import { HttpModule } from '@nestjs/axios';
 import { BooksService } from './books.service';
 import { BooksController } from './books.controller';
 import { BookLookupService } from './book-lookup.service';
-import { KakaoBookSearchService, NlBookSearchService } from './providers';
+import {
+  KakaoBookSearchService,
+  NlBookSearchService,
+  Yes24BookSearchService,
+} from './providers';
 
 @Module({
   imports: [HttpModule.register({ timeout: 3000, maxRedirects: 2 })],
@@ -12,6 +16,7 @@ import { KakaoBookSearchService, NlBookSearchService } from './providers';
     BookLookupService,
     KakaoBookSearchService,
     NlBookSearchService,
+    Yes24BookSearchService,
   ],
   controllers: [BooksController],
   exports: [BooksService],
