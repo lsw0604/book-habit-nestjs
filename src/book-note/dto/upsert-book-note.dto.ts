@@ -9,9 +9,20 @@ import {
   MaxLength,
   ValidateNested,
 } from 'class-validator';
+import {
+  BOOK_NOTE_SECTION_KEY_ENUM_NAME,
+  BOOK_NOTE_SECTION_KEYS,
+} from '../book-note.templates';
 
 export class BookNoteSectionInputDto {
-  @ApiProperty({ description: '섹션 key (템플릿 정의 참고)', example: 'seen' })
+  // 검증은 enum이 아니라 partitionBookNoteSections가 template 기준으로 한다.
+  @ApiProperty({
+    description:
+      '섹션 key. 고른 템플릿에 속한 key만 받는다(GET /book-note/templates 참고)',
+    enum: BOOK_NOTE_SECTION_KEYS,
+    enumName: BOOK_NOTE_SECTION_KEY_ENUM_NAME,
+    example: 'seen',
+  })
   @IsString()
   @MaxLength(30)
   key: string;

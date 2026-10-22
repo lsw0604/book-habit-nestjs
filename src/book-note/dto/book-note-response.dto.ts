@@ -1,8 +1,17 @@
 import { ApiProperty } from '@nestjs/swagger';
 import { BookNoteTemplate } from '@prisma/client';
+import {
+  BOOK_NOTE_SECTION_KEY_ENUM_NAME,
+  BOOK_NOTE_SECTION_KEYS,
+} from '../book-note.templates';
 
 export class BookNoteSectionResponseDto {
-  @ApiProperty({ description: '섹션 key', example: 'seen' })
+  @ApiProperty({
+    description: '섹션 key',
+    enum: BOOK_NOTE_SECTION_KEYS,
+    enumName: BOOK_NOTE_SECTION_KEY_ENUM_NAME,
+    example: 'seen',
+  })
   key: string;
 
   @ApiProperty({ description: '섹션 이름', example: '본 것' })
@@ -41,7 +50,12 @@ export class BookNoteResponseDto {
 }
 
 export class BookNoteTemplateSectionDto {
-  @ApiProperty({ description: '섹션 key', example: 'seen' })
+  @ApiProperty({
+    description: '섹션 key',
+    enum: BOOK_NOTE_SECTION_KEYS,
+    enumName: BOOK_NOTE_SECTION_KEY_ENUM_NAME,
+    example: 'seen',
+  })
   key: string;
 
   @ApiProperty({ description: '섹션 이름', example: '본 것' })
