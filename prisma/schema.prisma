@@ -59,20 +59,18 @@ model Book {
 }
 
 model User {
-  id            Int             @id @default(autoincrement())
-  email         String?         @unique
-  password      String?
-  name          String?
-  birthday      DateTime?       @db.Date
-  gender        Gender?
-  provider      Provider        @default(LOCAL)
-  profile       String?
-  myBook        MyBook[]
-  reviewLike    ReviewLike[]
-  reviewComment ReviewComment[]
-  readingGoal   ReadingGoal[]
-  createdAt     DateTime        @default(now())
-  updatedAt     DateTime        @updatedAt
+  id          Int           @id @default(autoincrement())
+  email       String?       @unique
+  password    String?
+  name        String?
+  birthday    DateTime?     @db.Date
+  gender      Gender?
+  provider    Provider      @default(LOCAL)
+  profile     String?
+  myBook      MyBook[]
+  readingGoal ReadingGoal[]
+  createdAt   DateTime      @default(now())
+  updatedAt   DateTime      @updatedAt
 }
 
 model MyBook {
@@ -92,7 +90,6 @@ model MyBook {
   lastReadAt  DateTime? // 가장 최근 ReadingLog 기록 시각
 
   readingLog ReadingLog[]
-  review     MyBookReview?
   note       BookNote?
   tag        MyBookTag[]
 
@@ -104,43 +101,6 @@ model MyBook {
 
   @@unique([userId, bookId])
   @@index([userId, status])
-}
-
-model MyBookReview {
-  id            Int             @id @default(autoincrement())
-  myBookId      Int             @unique
-  review        String          @db.VarChar(150) // "한줄평" - 최소 1자, 최대 150자 (앱 레벨에서 검증)
-  isPublic      Boolean
-  reviewLike    ReviewLike[]
-  reviewComment ReviewComment[]
-  createdAt     DateTime        @default(now())
-  updatedAt     DateTime        @updatedAt
-  myBook        MyBook          @relation(fields: [myBookId], references: [id], onDelete: Cascade)
-}
-
-// userId는 Cascade를 걸지 않음: MyBook(userId, Cascade) -> MyBookReview -> ReviewLike 경로가
-// 이미 존재해서 두 경로 모두 Cascade면 MySQL이 "multiple cascade paths" 에러로 FK 생성을 거부함.
-model ReviewLike {
-  id             Int          @id @default(autoincrement())
-  userId         Int
-  myBookReviewId Int
-  createdAt      DateTime     @default(now())
-  user           User         @relation(fields: [userId], references: [id])
-  myBookReview   MyBookReview @relation(fields: [myBookReviewId], references: [id], onDelete: Cascade)
-
-  @@unique([userId, myBookReviewId])
-}
-
-// userId에 Cascade를 걸지 않는 이유는 ReviewLike와 동일 (multiple cascade paths 회피)
-model ReviewComment {
-  id             Int          @id @default(autoincrement())
-  comment        String       @db.VarChar(1000)
-  myBookReviewId Int
-  userId         Int
-  createdAt      DateTime     @default(now())
-  updatedAt      DateTime     @updatedAt
-  user           User         @relation(fields: [userId], references: [id])
-  myBookReview   MyBookReview @relation(fields: [myBookReviewId], references: [id], onDelete: Cascade)
 }
 
 model Tag {
