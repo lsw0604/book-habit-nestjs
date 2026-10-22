@@ -22,7 +22,7 @@ import type {
 
 /**
  * 책 한 권 단위 개인 노트. MyBook당 하나라 경로 식별자로 myBookId를 쓴다
- * (my-book-review의 by-my-book과 같은 방식).
+ * (MyBook의 by-isbn처럼 상위 리소스 식별자로 유일한 자식을 찾는다).
  *
  * 소유권은 MyBook을 통해서만 확인한다. 조회는 where에 `myBook: { userId }`를 걸어
  * 남의 것이면 null을 돌려주고, 쓰기는 MyBookService.assertOwnership으로 먼저 확인한다.

@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project overview
 
-NestJS (TypeScript) + Prisma + MySQL backend for a book-reading-habit app. Book metadata comes from Kakao (search + lookup), supplemented by 국립중앙도서관. Users track their copies (`MyBook`), reading sessions (`ReadingLog`), one-line reviews with likes/comments, tags, and reading goals.
+NestJS (TypeScript) + Prisma + MySQL backend for a book-reading-habit app. Book metadata comes from Kakao (search + lookup), supplemented by 국립중앙도서관. Users track their copies (`MyBook`), reading sessions (`ReadingLog`), a private book-level note per book (`BookNote`), tags, and reading goals. The product is **personal-first**: there are no public reviews, feeds, likes or comments (they were removed on 2026-10-22).
 
 ## Commands
 
@@ -54,7 +54,7 @@ npm run prisma:studio     # open Prisma Studio GUI
   - `PrismaService` logs SQL (`query`) outside production, so N+1s show up at runtime.
   - `PrismaModule` is `@Global()`, so services can inject `PrismaService` without importing it.
   - Prisma is **pinned exactly** to `6.12.0` (no caret). 6.13+ pulls a vulnerable `deepmerge-ts` via `@prisma/config`, so bump it deliberately.
-  - Core domain: `Book` (keyed by unique `isbn`), `User`, `MyBook` (unique `[userId, bookId]`), `ReadingLog` (with `Quote`s), `MyBookReview` + `ReviewLike`/`ReviewComment`, `Tag`/`MyBookTag`, `ReadingGoal`, `BookNote` + `BookNoteSection`.
+  - Core domain: `Book` (keyed by unique `isbn`), `User`, `MyBook` (unique `[userId, bookId]`), `ReadingLog` (with `Quote`s), `Tag`/`MyBookTag`, `ReadingGoal`, `BookNote` + `BookNoteSection`.
   - Several `userId` FKs deliberately skip `onDelete: Cascade`, because MySQL rejects "multiple cascade paths" where a cascade already arrives via `MyBook`. Read the schema comments before adding cascades.
 - **Response envelope** (`src/common/response`): `ResponseDtoInterceptor` wraps every response as `{ success, statusCode, message, data }`, and `ResponseExceptionFilter` normalizes every exception to the same shape. Set the message with `@ResponseMessage('...')`. The envelope's `statusCode` is read off `res.statusCode`, so it always equals the HTTP status.
   - **Swagger decorators for the envelope** — never `@ApiOkResponse`/`@ApiResponse` with a bare DTO, which documents the *unwrapped* body:
@@ -85,20 +85,19 @@ npm run prisma:studio     # open Prisma Studio GUI
 - `POST /auth/signup|login|kakao/callback` set `access_token` (path `/`) and `refresh_token`. The refresh cookie's path is `/api/auth` only (`REFRESH_TOKEN_COOKIE_PATH` in [auth.constants.ts](src/auth/auth.constants.ts)). `POST /auth/refresh` reissues the access token.
 - Guards (`src/auth/guards`):
   - `AccessTokenGuard` returns 401 without a valid cookie; it's the default for logged-in endpoints.
-  - `OptionalAccessTokenGuard` never rejects. `@CurrentUser()` becomes `JwtPayload | undefined`.
-  - When a resource mixes strict writes with anonymous reads, apply guards **per method** (see `MyBookReviewController`/`ReviewCommentController`). Controller-level and method-level `@UseGuards()` are cumulative, so a controller-wide `AccessTokenGuard` would still 401 anonymous callers.
+  - `OptionalAccessTokenGuard` never rejects. `@CurrentUser()` becomes `JwtPayload | undefined`. No controller uses it since `public-review` was removed; it stays for the next anonymous-read endpoint.
+  - When a controller mixes guarded and public endpoints, apply the guard **and** `@ApiAccessCookieAuth()` **per method** (see `BookNoteController`, whose `GET templates` is public). Controller-level and method-level `@UseGuards()` are cumulative, so a controller-wide `AccessTokenGuard` would still 401 anonymous callers, and a controller-wide cookie decorator would document the public route as protected.
 - `signup`/`login`/`kakao/callback` share `AUTH_THROTTLE` (5 req/min) against brute force and spam signups.
 
 ### Ownership validation pattern
 
 Every resource is scoped to its owner. *How* depends on whether the model has a direct `userId` column:
 
-- **Direct `userId`** (`MyBook`, `ReviewLike`, `ReviewComment`, `ReadingGoal`): one atomic query, `update/delete({ where: { id, userId } })`. Prisma accepts extra scalar filters beside the unique key.
-  - `MyBookService.assertOwnership(userId, myBookId)` is the single source of truth for `MyBook` ownership. `ReadingLogService`, `MyBookReviewService` and `MyBookTagService` call it instead of re-implementing `findFirst({ id, userId })`.
-- **Ownership only through a relation** (`ReadingLog`, `MyBookReview`, `MyBookTag`, anything under `MyBookReview`): `update()`/`delete()` can't filter through a relation, so these services **assert, then mutate**. First `findFirst({ where: { id, myBook: { userId } } })`, throwing 404 on a miss, then a plain `update/delete({ where: { id } })`.
-- **"Public or mine"** (`MyBookReviewService.accessibleOr`, inlined in `ReviewCommentService.findOne`): `OR: [{ isPublic: true }, { myBook: { userId } }]`.
-  - When `userId` is `undefined` (anonymous), **omit the owner branch**. Prisma silently drops `undefined` filter keys, so `{ myBook: { userId: undefined } }` would match every row. For the same reason, `public-review` coerces an anonymous `userId` to the sentinel `0`.
-  - This filter answers "may this actor interact with / see that this review exists?" It is **not** the rule for serving a review's detail; detail reads are split by audience (see `my-book-review` vs `public-review`).
+- **Direct `userId`** (`MyBook`, `ReadingGoal`): one atomic query, `update/delete({ where: { id, userId } })`. Prisma accepts extra scalar filters beside the unique key.
+  - `MyBookService.assertOwnership(userId, myBookId)` is the single source of truth for `MyBook` ownership. `ReadingLogService`, `MyBookTagService` and `BookNoteService` call it instead of re-implementing `findFirst({ id, userId })`.
+- **Ownership only through a relation** (`ReadingLog`, `MyBookTag`, `BookNote`/`BookNoteSection`): `update()`/`delete()` can't filter through a relation, so these services **assert, then mutate**. First `findFirst({ where: { id, myBook: { userId } } })`, throwing 404 on a miss, then a plain `update/delete({ where: { id } })`. A `deleteMany` with the relation filter that 404s on `count === 0` is the one-query alternative (`BookNoteService.remove`).
+- **Never filter with a possibly-`undefined` `userId`.** Prisma silently drops `undefined` filter keys, so `{ myBook: { userId: undefined } }` matches every row. Guarded endpoints always have a `userId`; any future anonymous read must omit the owner branch, not pass `undefined`.
+- **No `User` relation reaches a response without an explicit `select`.** `User` holds `password`/`email`/`birthday`/`gender`, so a bare `include: { user: true }` leaks the password hash.
 
 ### Domain modules
 
@@ -115,20 +114,7 @@ Every resource is scoped to its owner. *How* depends on whether the model has a 
   - Feelings go in free-text `memo`. The `readingMood` enum was removed: nothing aggregated it, and it only added input friction. Build the aggregating screen *before* reintroducing any structured field here.
   - `findAll` **always** scopes by `myBook: { userId }`. `myBookId` is an optional narrowing filter (omit it for the cross-book timeline). `from`/`to` (`parseDateOnly`) may be in the future, unlike recording. Items carry `book` (title/thumbnail).
 - **`quote`**: ownership is two relations deep (`Quote` → `ReadingLog` → `MyBook`). `QuoteService.assertReadingLogOwnership` does its own `findFirst({ id: readingLogId, myBook: { userId } })`. It can't reuse `MyBookService.assertOwnership`, which works at the wrong level, or `ReadingLogService`, which isn't exported.
-- **`my-book-review`**: the **owner-facing** side of the single one-line review per `MyBook`. Every endpoint needs `AccessTokenGuard`.
-  - `findAll` returns everything the caller wrote. `findLiked`/`findCommented` go through `accessibleOr`, so reviews that later went private drop out.
-  - `GET /my-book-review/:id` takes the **review's own PK**, is owner-only, and returns the edit shape (`myBookId`/`isPublic`/`updatedAt`). To go the other way — "does this shelf item have a review?" — use `GET /my-book-review/by-my-book/:myBookId`, which exploits `myBookId`'s unique index and answers `null` (not 404) for both "not written yet" and "not my `MyBook`". Don't conflate the two identifiers; the client passing a `myBookId` to `:id` silently reads a *different* review of its own. Reading someone else's review goes through `public-review`, because a stranger must get `author`/`isLiked` and must **not** get `myBookId`. Don't widen `findOne` to `accessibleOr`; that reintroduces the leak.
-  - It exports `assertAccessible` ("may this actor like/comment?") for `review-like`/`review-comment`. That's a different question from "may this actor read the detail?"; keep them apart.
-- **`review-like`** / **`review-comment`**: both call `assertAccessible` before writing. Making a review private blocks *new* interactions but doesn't delete existing ones.
-  - Comments expose the commenter as `author` (`{ id, name, profile }`), never the raw `userId`.
-  - The `user` join **must** go through `ReviewCommentSelect`. `User` holds `password`/`email`/`birthday`/`gender`, so a bare `include: { user: true }` leaks the password hash. Rule: no `User` relation reaches a response without an explicit `select`.
-- **`public-review`**: the **reader-facing**, cross-user side of reviews, with `OptionalAccessTokenGuard` on the whole controller.
-  - The feed (`GET /public-review`) and the detail (`GET /public-review/:id`) return the same shape: `author`, `isLiked`, `rating`, `book` (title/thumbnail/isbn). `myBookId`/`isPublic` are withheld.
-  - `rating` is public because a public review means "publish my impression," which is the one-liner plus the score. `currentPage`, logs and quotes stay private, so `myBook`'s select is exactly `rating` + `book` + `user`.
-  - The detail filters `{ id, isPublic: true }` with **no** owner branch, so an author reads their private review via `my-book-review`.
-  - Filtering is by `isbn`, never `Book.id`, which no endpoint exposes.
-  - `isLiked` comes from a nested `reviewLike: { where: { userId }, take: 1 }` in the same query. An anonymous `userId` becomes the sentinel `0`, never `undefined`.
-- **`public-tag`**: `GET /public-tag?isbn=&limit=` (no guard; `limit` 1–50, default 20) feeds the tag cloud on the book page.
+- **`public-tag`**: `GET /public-tag?isbn=&limit=` (no guard; `limit` 1–50, default 20). It's the one cross-user aggregate left, kept as an **input aid**: when a user tags a book, the client suggests the tags others put on that book (and should fall back to the user's own frequent tags, since most books have none yet). It is **not** shown as a public tag cloud on the book page; that use was dropped with the personal-first direction.
   - It returns `[{ tagId, value, count }]` ordered `count DESC, tagId ASC`, where `count` = `MyBook`s carrying the tag.
   - An unshelved book returns `[]`, not a 404.
   - `isbn` is normalized with `normalizeIsbn13`. An invalid value transforms to `false`, not `null`, because `@IsOptional` treats `null` as absent and would silently return the global aggregate instead of a 400.
@@ -144,7 +130,7 @@ Every resource is scoped to its owner. *How* depends on whether the model has a 
 - **`book-note`**: a private, book-level note per `MyBook` (unique `myBookId`), written against a reading-method template (`BookNoteTemplate`: 한 문장 정리, 본깨적, KWL, 3-2-1, 자유). It exists because a 150-char one-liner and a 500-char session memo leave nowhere to reflect on a whole book, and a blank page is why people never start. It's **private only**: no `isPublic`, no feed, no likes (the app is personal-first).
   - `BOOK_NOTE_TEMPLATES` (`book-note.templates.ts`) is the single source for section keys, labels, prompts and `maxLength`. It `satisfies Record<BookNoteTemplate, …>`, so a new enum value without a definition fails `tsc`. `GET /book-note/templates` serves it, and the client must not hardcode the copy. **Never rename or remove a section `key`** that has saved rows; responses drop keys the template doesn't define.
   - Sections are **rows** (`BookNoteSection`, unique `[bookNoteId, key]`), not JSON, so per-section `updatedAt` survives (KWL's before/after timing) and a future "all my 적용할 것" view is a plain query. An empty section has **no row**; `toBookNoteSections` expands every template section in order, with `''`/`null` for missing ones, so responses always carry the full template.
-  - Routes are keyed by `myBookId` (`/book-note/by-my-book/:myBookId`, same as `my-book-review`). `GET` returns `null` for "not written" and "not mine" alike. `PUT` upserts in one `$transaction`: it updates only the sections sent (partial save), deletes rows for whitespace-only sections, and wipes all rows when the template changes. Validation (`partitionBookNoteSections`) runs before the transaction, so a 400 never touches the DB.
+  - Routes are keyed by `myBookId` (`/book-note/by-my-book/:myBookId`; the note is the only child of its `MyBook`). `GET` returns `null` for "not written" and "not mine" alike. `PUT` upserts in one `$transaction`: it updates only the sections sent (partial save), deletes rows for whitespace-only sections, and wipes all rows when the template changes. Validation (`partitionBookNoteSections`) runs before the transaction, so a 400 never touches the DB.
   - Ownership is relation-only (`MyBook`): reads and deletes filter `myBook: { userId }`, and `PUT` calls `MyBookService.assertOwnership` first. There is no `userId` FK, for the usual multiple-cascade-path reason.
 - **Books module** (`src/books`): `BooksController` serves search (`GET /books`, Kakao) and detail (`GET /books/detail/:isbn`); `BooksService` owns `Book` rows.
   - Providers live under `src/books/providers/{kakao,nl,yes24}` and share one shape: inject `HttpService` + `ConfigService`, call the API through `firstValueFrom`, turn failures into `BadGatewayException` in `catchError` (not found → `NotFoundException`), and map the response with a static `.from(...)`. They are re-exported via `providers/index.ts`.

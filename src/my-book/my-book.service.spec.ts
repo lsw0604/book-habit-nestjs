@@ -51,7 +51,6 @@ function fakeMyBookDetail(overrides: Record<string, unknown> = {}) {
     totalPage: null,
     readCount: 0,
     book: { totalPage: 300 },
-    review: null,
     _count: { readingLog: 0 },
     ...overrides,
   };
@@ -94,7 +93,7 @@ describe('MyBookService', () => {
 
   // MyBook은 userId 직접 컬럼을 가지므로 조회/변이 모두 userId로 스코프되어야 한다.
   // 이 조건이 빠지면 남의 서재 항목에 접근할 수 있고, assertOwnership은
-  // ReadingLog/MyBookReview/MyBookTag가 공유하는 단일 진실 공급원이라 파급이 크다.
+  // ReadingLog/MyBookTag/BookNote가 공유하는 단일 진실 공급원이라 파급이 크다.
   describe('소유권 스코프 (where 절)', () => {
     it('assertOwnership은 id와 userId를 함께 걸어 조회한다', async () => {
       prismaService.myBook.findFirst.mockResolvedValue({
@@ -562,28 +561,6 @@ describe('MyBookService', () => {
       });
     });
 
-    it('hasReview: true면 리뷰가 있는 항목만 조회한다', async () => {
-      mockList();
-
-      await service.findAll(7, undefined, { ...options, hasReview: true });
-
-      expect(callWhere(prismaService.myBook.findMany)).toEqual({
-        userId: 7,
-        review: { isNot: null },
-      });
-    });
-
-    it('hasReview: false면 리뷰가 없는 항목만 조회한다 (undefined와 구분)', async () => {
-      mockList();
-
-      await service.findAll(7, undefined, { ...options, hasReview: false });
-
-      expect(callWhere(prismaService.myBook.findMany)).toEqual({
-        userId: 7,
-        review: { is: null },
-      });
-    });
-
     // 정렬 방향과 무관하게 한 번도 안 읽은 책(lastReadAt: null)은 항상 뒤로 보낸다.
     // asc로 뒤집는다고 "안 읽은 책 먼저"가 되면 안 된다는 것이 이 규칙의 핵심.
     it.each(['asc', 'desc'] as const)(
@@ -656,15 +633,14 @@ describe('MyBookService', () => {
 
     it('찾으면 findOne과 동일한 detail 형태로 반환한다', async () => {
       prismaService.myBook.findFirst.mockResolvedValue(
-        fakeMyBookDetail({ review: { id: 3 }, _count: { readingLog: 2 } }),
+        fakeMyBookDetail({ _count: { readingLog: 2 } }),
       );
 
       const result = await service.findByIsbn(7, '9788996991342');
 
-      expect(result).toMatchObject({
-        id: 1,
-        _count: { readingLog: 2, review: 1 },
-      });
+      expect(result).toMatchObject({ id: 1 });
+      // 한줄평이 사라져 _count에는 독서 기록 수만 남는다.
+      expect(result?._count).toEqual({ readingLog: 2 });
     });
   });
 
