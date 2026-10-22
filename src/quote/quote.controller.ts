@@ -12,10 +12,11 @@ import {
   Query,
   UseGuards,
 } from '@nestjs/common';
-import { ApiOperation, ApiParam, ApiQuery, ApiTags } from '@nestjs/swagger';
+import { ApiOperation, ApiParam, ApiTags } from '@nestjs/swagger';
 import { QuoteService } from './quote.service';
 import { CreateQuoteDto } from './dto/create-quote.dto';
 import { UpdateQuoteDto } from './dto/update-quote.dto';
+import { FindQuoteQueryDto } from './dto/find-quote.query.dto';
 import { QuoteResponseDto } from './dto/quote-response.dto';
 import {
   ApiCreatedResponseDto,
@@ -39,28 +40,26 @@ export class QuoteController {
   @ApiCreatedResponseDto(QuoteResponseDto)
   @ApiUnauthorizedResponse()
   @ApiErrorResponse(
+    HttpStatus.BAD_REQUEST,
+    '페이지가 이 책의 총 페이지 수를 초과함',
+  )
+  @ApiErrorResponse(
     HttpStatus.NOT_FOUND,
-    '독서 기록이 없거나 본인 것이 아님 (소유권은 Quote→ReadingLog→MyBook 두 단계)',
+    '서재 항목이 없거나 본인 것이 아님, 또는 readingLogId가 이 책의 독서 기록이 아님',
   )
   create(@CurrentUser() user: JwtPayload, @Body() dto: CreateQuoteDto) {
     return this.quoteService.create(user.sub, dto);
   }
 
   @Get()
-  @ApiOperation({ summary: '특정 ReadingLog의 인용구 목록 조회' })
-  @ApiQuery({
-    name: 'readingLogId',
-    type: Number,
-    description: 'ReadingLog ID',
+  @ApiOperation({
+    summary: '책의 인용구 목록 조회 (페이지순, readingLogId로 좁힐 수 있음)',
   })
   @ApiResponseDto(QuoteResponseDto, { isArray: true })
   @ApiUnauthorizedResponse()
-  @ApiErrorResponse(HttpStatus.NOT_FOUND, '독서 기록이 없거나 본인 것이 아님')
-  findAll(
-    @CurrentUser() user: JwtPayload,
-    @Query('readingLogId', ParseIntPipe) readingLogId: number,
-  ) {
-    return this.quoteService.findAll(user.sub, readingLogId);
+  @ApiErrorResponse(HttpStatus.NOT_FOUND, '서재 항목이 없거나 본인 것이 아님')
+  findAll(@CurrentUser() user: JwtPayload, @Query() query: FindQuoteQueryDto) {
+    return this.quoteService.findAll(user.sub, query);
   }
 
   @Get(':id')
@@ -77,11 +76,20 @@ export class QuoteController {
   }
 
   @Patch(':id')
-  @ApiOperation({ summary: '인용구 수정' })
+  @ApiOperation({
+    summary: '인용구 수정 (readingLogId: null이면 독서 기록 연결 해제)',
+  })
   @ApiParam({ name: 'id', description: 'Quote ID' })
   @ApiResponseDto(QuoteResponseDto)
   @ApiUnauthorizedResponse()
-  @ApiErrorResponse(HttpStatus.NOT_FOUND, '인용구가 없거나 본인 것이 아님')
+  @ApiErrorResponse(
+    HttpStatus.BAD_REQUEST,
+    '페이지가 이 책의 총 페이지 수를 초과함',
+  )
+  @ApiErrorResponse(
+    HttpStatus.NOT_FOUND,
+    '인용구가 없거나 본인 것이 아님, 또는 readingLogId가 이 책의 독서 기록이 아님',
+  )
   update(
     @CurrentUser() user: JwtPayload,
     @Param('id', ParseIntPipe) id: number,
