@@ -90,6 +90,7 @@ model MyBook {
   lastReadAt  DateTime? // 가장 최근 ReadingLog 기록 시각
 
   readingLog ReadingLog[]
+  quote      Quote[]
   note       BookNote?
   tag        MyBookTag[]
 
@@ -145,15 +146,22 @@ model ReadingLog {
   @@index([myBookId, date])
 }
 
-// 독서 중 저장한 인용구/하이라이트. 세션(ReadingLog)당 여러 개 가능
+// 책에서 저장한 인용구/하이라이트. 책(MyBook)에 속하고, 어느 독서 기록 중에 남겼는지는 선택이다.
+// 예전엔 ReadingLog에만 매달려(Cascade) 기록을 지우면 인용도 사라졌고, 인용 하나 남기려고
+// 진행률을 바꾸는 독서 기록부터 만들어야 했다. 이제 기록을 지우면 연결만 풀린다(SetNull).
+// MyBook 삭제 시 Quote로 오는 경로가 둘(직접 Cascade, ReadingLog 경유 SetNull)이다. 한쪽이
+// SetNull인 이 경우는 MySQL이 허용한다 - 마이그레이션 적용 후 실제 DB에서 삭제해 확인함.
 model Quote {
-  id           Int        @id @default(autoincrement())
-  readingLogId Int
+  id           Int         @id @default(autoincrement())
+  myBookId     Int
+  readingLogId Int?
   page         Int
-  content      String     @db.Text
-  createdAt    DateTime   @default(now())
-  readingLog   ReadingLog @relation(fields: [readingLogId], references: [id], onDelete: Cascade)
+  content      String      @db.Text
+  createdAt    DateTime    @default(now())
+  myBook       MyBook      @relation(fields: [myBookId], references: [id], onDelete: Cascade)
+  readingLog   ReadingLog? @relation(fields: [readingLogId], references: [id], onDelete: SetNull)
 
+  @@index([myBookId, page])
   @@index([readingLogId])
 }
 
