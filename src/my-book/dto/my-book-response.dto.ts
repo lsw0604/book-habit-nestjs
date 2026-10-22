@@ -86,9 +86,6 @@ export class MyBookListItemBookDto {
 export class MyBookCountDto {
   @ApiProperty({ description: '독서 세션(ReadingLog) 기록 수', example: 3 })
   readingLog: number;
-
-  @ApiProperty({ description: '한줄평 작성 여부 (0 또는 1)', example: 1 })
-  review: number;
 }
 
 export class MyBookResponseDto {

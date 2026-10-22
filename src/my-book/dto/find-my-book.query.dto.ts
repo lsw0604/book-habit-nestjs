@@ -1,15 +1,7 @@
 import { ApiPropertyOptional } from '@nestjs/swagger';
 import { MyBookStatus } from '@prisma/client';
 import { Transform, Type } from 'class-transformer';
-import {
-  IsBoolean,
-  IsEnum,
-  IsIn,
-  IsInt,
-  IsOptional,
-  Max,
-  Min,
-} from 'class-validator';
+import { IsEnum, IsIn, IsInt, IsOptional, Max, Min } from 'class-validator';
 
 // 'ALL'은 MyBookStatus에 없는 요청 전용 sentinel이라 enum 목록에 직접 끼워 넣는다.
 // 설명 문구로만 적어 두면 생성 타입과 Swagger UI 드롭다운에서 보낼 수 없다.
@@ -40,21 +32,6 @@ export class FindMyBookQueryDto {
   @Min(0, { message: '평점은 0 이상이어야 합니다.' })
   @Max(5, { message: '평점은 5 이하여야 합니다.' })
   minRating?: number;
-
-  @ApiPropertyOptional({
-    description: '한줄평 작성 여부로 필터링 (true: 작성함, false: 미작성)',
-    example: true,
-  })
-  @IsOptional()
-  // Query String은 'true'/'false' 문자열로 들어오므로, 값 그대로 boolean으로 치환한다.
-  // @Type(() => Boolean)은 Boolean('false') === true라 오작동하므로 쓰지 않는다.
-  @Transform(({ value }: { value: unknown }) => {
-    if (value === 'true') return true;
-    if (value === 'false') return false;
-    return value;
-  })
-  @IsBoolean({ message: 'hasReview는 boolean 값이어야 합니다.' })
-  hasReview?: boolean;
 
   @ApiPropertyOptional({
     description: '정렬 방향 (최근 읽은 순 -> 등록한 순 기준). 미지정 시 desc',

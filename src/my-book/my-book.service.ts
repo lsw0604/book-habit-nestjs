@@ -109,20 +109,14 @@ export class MyBookService {
 
   /**
    * MyBookDetailInclude로 조회한 결과를 응답 형태로 변환한다.
-   * review는 1:1 관계라 Prisma _count로 집계할 수 없으므로,
-   * readingLog와 같은 위치(_count)에서 0/1로 존재 여부만 노출하도록 애플리케이션 레벨에서 매핑한다.
    * book.pubDate는 검색 결과·도서 상세와 같은 'YYYY-MM-DD'로 바꾼다(formatDateOnly 참고).
    */
   private toDetailResponse(myBook: MyBookDetail) {
-    const { review, _count, book, ...rest } = myBook;
+    const { book, ...rest } = myBook;
 
     return {
       ...rest,
       book: { ...book, pubDate: formatDateOnly(book.pubDate) },
-      _count: {
-        readingLog: _count.readingLog,
-        review: review ? 1 : 0,
-      },
     };
   }
 
@@ -133,13 +127,11 @@ export class MyBookService {
       page,
       limit,
       minRating,
-      hasReview,
       order,
     }: {
       page: number;
       limit: number;
       minRating?: number;
-      hasReview?: boolean;
       order: 'asc' | 'desc';
     },
   ) {
@@ -147,9 +139,6 @@ export class MyBookService {
       userId,
       ...(status && { status }),
       ...(minRating !== undefined && { rating: { gte: minRating } }),
-      ...(hasReview !== undefined && {
-        review: hasReview ? { isNot: null } : { is: null },
-      }),
     };
 
     const [items, totalCount] = await this.prismaService.$transaction([
@@ -211,7 +200,7 @@ export class MyBookService {
   }
 
   /**
-   * MyBook이 userId 소유인지 확인한다. ReadingLog/MyBookReview/MyBookTag처럼
+   * MyBook이 userId 소유인지 확인한다. ReadingLog/MyBookTag/BookNote처럼
    * MyBook에 종속된 리소스를 만들기 전에 공통으로 호출하는 용도 - MyBook
    * 소유권 규칙은 이 애그리거트를 소유한 MyBookService가 유일한 진실 공급원이어야
    * 각 호출부가 프리즈마를 직접 찔러 규칙을 각자 재구현하는 걸 막을 수 있다.
