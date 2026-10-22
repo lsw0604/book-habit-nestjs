@@ -16,11 +16,6 @@ export const MyBookDetailInclude = {
       totalPage: true,
     },
   },
-  review: {
-    select: {
-      id: true,
-    },
-  },
   _count: {
     select: {
       readingLog: true,

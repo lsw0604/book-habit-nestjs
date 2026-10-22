@@ -58,19 +58,18 @@ export class MyBookController {
   // 정말 필요해질 경우를 대비해 남겨둔 것.
   @Get()
   @ApiOperation({
-    summary: '서재 목록 조회 (상태/평점/리뷰 여부 필터, 정렬)',
+    summary: '서재 목록 조회 (상태/평점 필터, 정렬)',
   })
   @ApiResponseDto(MyBookListResponseDto)
   @ApiUnauthorizedResponse()
   findAll(@CurrentUser() user: JwtPayload, @Query() query: FindMyBookQueryDto) {
     // page/limit/order의 기본값은 FindMyBookQueryDto 필드 초기값이 유일한
     // 소스다 - 여기서 또 기본값을 주면 Swagger 문서와 실제 동작이 따로 놀 수 있다.
-    const { status, minRating, hasReview, page, limit, order } = query;
+    const { status, minRating, page, limit, order } = query;
     return this.myBookService.findAll(user.sub, status, {
       page,
       limit,
       minRating,
-      hasReview,
       order,
     });
   }
