@@ -152,3 +152,19 @@ export const BOOK_NOTE_TEMPLATES = {
     ],
   },
 } as const satisfies Record<BookNoteTemplate, BookNoteTemplateDef>;
+
+/**
+ * 모든 템플릿의 섹션 key(선언 순서, 중복 제거). 클라이언트 생성 타입이 string 대신 key 유니온이
+ * 되도록 Swagger enum으로만 노출한다. 어떤 key가 어떤 템플릿에 속하는지는 담지 못하므로
+ * 실제 검증은 여전히 partitionBookNoteSections가 템플릿 기준으로 한다(DB도 string 그대로).
+ */
+export const BOOK_NOTE_SECTION_KEYS: readonly string[] = [
+  ...new Set(
+    Object.values<BookNoteTemplateDef>(BOOK_NOTE_TEMPLATES).flatMap((def) =>
+      def.sections.map((section) => section.key),
+    ),
+  ),
+];
+
+/** Swagger 스키마 컴포넌트 이름. 세 DTO가 같은 enum을 공유하게 한다. */
+export const BOOK_NOTE_SECTION_KEY_ENUM_NAME = 'BookNoteSectionKey';
