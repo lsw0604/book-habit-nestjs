@@ -4,7 +4,6 @@ export const MyBookDetailInclude = {
   book: {
     select: {
       title: true,
-      subTitle: true,
       isbn: true,
       authors: true,
       translators: true,
