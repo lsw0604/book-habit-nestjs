@@ -1,7 +1,7 @@
 import {
   parseUtcDate,
   splitAuthorsByRole,
-  splitTitle,
+  mainTitle,
 } from '../book-metadata.util';
 import type { BookMetadataPatch } from '../book-metadata-provider';
 import type { NlDocumentRaw } from './nl.types';
@@ -13,11 +13,10 @@ import type { NlDocumentRaw } from './nl.types';
 export class NlLookupResDto {
   static from(doc: NlDocumentRaw): BookMetadataPatch {
     const { authors, translators } = splitAuthorsByRole(doc.AUTHOR);
-    const { title, subTitle } = splitTitle(doc.TITLE);
     const cover = doc.TITLE_URL?.trim() || null;
 
     return {
-      title,
+      title: mainTitle(doc.TITLE),
       authors,
       translators,
       publisher: doc.PUBLISHER?.trim() || null,
@@ -28,7 +27,6 @@ export class NlLookupResDto {
       // 국립중앙도서관은 표지를 한 가지 크기로만 주고, 실제로는 대부분 비어 있다.
       thumbnail: cover,
       coverImage: cover,
-      subTitle,
       totalPage: NlLookupResDto.parsePage(doc.PAGE),
     };
   }

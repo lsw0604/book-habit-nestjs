@@ -22,9 +22,6 @@ export class BookDetailResDto {
   @ApiProperty({ description: '책 제목', example: '미움받을 용기' })
   title: string;
 
-  @ApiProperty({ description: '부제', type: String, nullable: true })
-  subTitle: string | null;
-
   @ApiProperty({
     description: '저자 목록',
     example: ['기시미 이치로', '고가 후미타케'],
@@ -73,7 +70,6 @@ export class BookDetailResDto {
     return {
       isbn: book.isbn,
       title: book.title,
-      subTitle: book.subTitle,
       authors: toStringArray(book.authors),
       translators: toStringArray(book.translators),
       publisher: book.publisher,

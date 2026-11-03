@@ -79,7 +79,6 @@ describe('NlLookupResDto.from', () => {
 
     expect(dto).toMatchObject({
       title: '트렌드 코리아2026',
-      subTitle: null,
       authors: ['고종문'],
       translators: [],
       totalPage: 393,
@@ -94,7 +93,6 @@ describe('NlLookupResDto.from', () => {
 
     expect(dto).toEqual({
       title: '미움받을 용기',
-      subTitle: null,
       authors: ['기시미 이치로', '고가 후미타케'],
       translators: [],
       publisher: '(주)인플루엔셜',
@@ -114,13 +112,12 @@ describe('NlLookupResDto.from', () => {
     expect(dto.translators).toEqual(['홍길동']);
   });
 
-  it('TITLE의 " : " 뒤를 부제로 분리한다', () => {
+  it('TITLE의 " : " 뒤 부제는 버리고 본표제만 쓴다', () => {
     const dto = NlLookupResDto.from(
       recentDoc({ TITLE: '관계의 압력에서 사건을 읽다 : 최소한의 소설 읽기' }),
     );
 
     expect(dto.title).toBe('관계의 압력에서 사건을 읽다');
-    expect(dto.subTitle).toBe('최소한의 소설 읽기');
   });
 
   it('실제 발행일이 없으면 발행예정일을 쓴다', () => {
@@ -165,7 +162,6 @@ describe('NlLookupResDto.from', () => {
     expect(Object.keys(NlLookupResDto.from(recentDoc())).sort()).toEqual(
       [
         'title',
-        'subTitle',
         'authors',
         'translators',
         'publisher',

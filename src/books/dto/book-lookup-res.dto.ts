@@ -8,7 +8,6 @@
 export class BookLookupResDto {
   isbn: string;
   title: string;
-  subTitle: string | null;
   authors: string[];
   translators: string[];
   publisher: string | null;

@@ -103,7 +103,6 @@ describe('BooksService', () => {
       id: 1,
       isbn: '9788996991342',
       title: '미움받을 용기',
-      subTitle: null,
       authors: ['기시미 이치로', '고가 후미타케'],
       translators: ['전경아'],
       publisher: '인플루엔셜',

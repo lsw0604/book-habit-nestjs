@@ -25,7 +25,6 @@ const kakaoPatch: BookMetadataPatch = {
 
 const nlPatch: BookMetadataPatch = {
   title: '트렌드 코리아2026',
-  subTitle: 'NL 부제',
   authors: ['고종문'],
   translators: [],
   publisher: 'NL 쪽 출판사 표기',
@@ -40,11 +39,10 @@ const yes24Patch: BookMetadataPatch = {
   url: 'https://www.yes24.com/product/goods/153064968',
 };
 
-/** 카카오를 기본으로 NL이 부제·쪽수를 보충한 결과(YES24 없음). */
+/** 카카오를 기본으로 NL이 쪽수를 보충한 결과(YES24 없음). */
 const kakaoWithNl: BookLookupResDto = {
   isbn: ISBN,
   title: '트렌드 코리아2026',
-  subTitle: 'NL 부제',
   authors: ['고종문'],
   translators: [],
   publisher: '퍼플',
@@ -59,7 +57,6 @@ const kakaoWithNl: BookLookupResDto = {
 const nlOnly: BookLookupResDto = {
   isbn: ISBN,
   title: '트렌드 코리아2026',
-  subTitle: 'NL 부제',
   authors: ['고종문'],
   translators: [],
   publisher: 'NL 쪽 출판사 표기',
@@ -136,7 +133,6 @@ describe('BookLookupService', () => {
 
     await expect(service.getByIsbn(ISBN)).resolves.toEqual({
       ...kakaoWithNl,
-      subTitle: null,
       totalPage: null,
     });
   });
