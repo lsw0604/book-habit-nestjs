@@ -56,14 +56,9 @@ export function parseUtcDate(raw: string | undefined): Date | null {
 
 // 서지 표기(ISBD)에서는 본표제와 부제를 " :"로 잇는다
 // (예: 국립중앙도서관 TITLE "관계의 압력에서 사건을 읽다 : 최소한의 소설 읽기").
+// 부제는 저장하지 않으므로 본표제만 남긴다. 카카오 제목에는 부제가 없어서, NL이 기본
+// 출처일 때도 같은 책의 제목이 같은 모양이 된다.
 // 앞에 공백이 있는 콜론만 구분자로 보므로 "Re:Zero"처럼 제목 안의 콜론은 나누지 않는다.
-export function splitTitle(raw: string): {
-  title: string;
-  subTitle: string | null;
-} {
-  const [title, ...rest] = raw.split(/\s+:/);
-  return {
-    title: title.trim(),
-    subTitle: rest.join(':').trim() || null,
-  };
+export function mainTitle(raw: string): string {
+  return raw.split(/\s+:/)[0].trim();
 }

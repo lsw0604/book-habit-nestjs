@@ -41,7 +41,6 @@ enum BookNoteTemplate {
 model Book {
   id          Int       @id @default(autoincrement())
   title       String
-  subTitle    String?
   isbn        String    @unique @db.VarChar(13)
   authors     Json?
   translators Json?

@@ -1,7 +1,7 @@
 import {
   parseUtcDate,
   splitAuthorsByRole,
-  splitTitle,
+  mainTitle,
 } from './book-metadata.util';
 
 describe('splitAuthorsByRole', () => {
@@ -37,20 +37,17 @@ describe('parseUtcDate', () => {
   );
 });
 
-describe('splitTitle', () => {
-  it('" :" 뒤를 부제로 분리한다', () => {
+describe('mainTitle', () => {
+  it('" :" 뒤의 부제를 떼고 본표제만 남긴다', () => {
     expect(
-      splitTitle('미움받을 용기 :자유롭고 행복한 삶을 위한 아들러의 가르침 '),
-    ).toEqual({
-      title: '미움받을 용기',
-      subTitle: '자유롭고 행복한 삶을 위한 아들러의 가르침',
-    });
+      mainTitle('미움받을 용기 :자유롭고 행복한 삶을 위한 아들러의 가르침 '),
+    ).toBe('미움받을 용기');
   });
 
   it.each(['미움받을 용기', 'Re:Zero'])(
-    '"%s"처럼 공백 뒤 콜론이 없으면 부제는 null이다',
+    '"%s"처럼 공백 뒤 콜론이 없으면 그대로 둔다',
     (raw) => {
-      expect(splitTitle(raw)).toEqual({ title: raw, subTitle: null });
+      expect(mainTitle(raw)).toBe(raw);
     },
   );
 });

@@ -10,9 +10,6 @@ export class MyBookDetailBookDto {
   @ApiProperty({ description: '책 제목', example: '미움받을 용기' })
   title: string;
 
-  @ApiProperty({ description: '부제', nullable: true, type: String })
-  subTitle: string | null;
-
   @ApiProperty({ description: 'ISBN', example: '9788996991342' })
   isbn: string;
 

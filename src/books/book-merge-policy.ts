@@ -22,8 +22,6 @@ export const BOOK_MERGE_POLICY = {
   // 제목·저자·표지는 카카오가 가장 온전하다. NL은 카카오에 없는 책(전자책 등)의 대체다.
   // NL의 표지(TITLE_URL)는 확인한 전부 비어 있었다.
   title: ['kakao', 'nl'],
-  // 카카오는 부제를 따로 주지 않는다.
-  subTitle: ['nl'],
   authors: ['kakao', 'nl'],
   translators: ['kakao', 'nl'],
   publisher: ['kakao', 'nl'],
@@ -73,7 +71,6 @@ export function mergeBookMetadata(
   return {
     isbn,
     title,
-    subTitle: pick('subTitle') ?? null,
     authors: pick('authors') ?? [],
     translators: pick('translators') ?? [],
     publisher: pick('publisher') ?? null,

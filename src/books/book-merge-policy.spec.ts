@@ -6,16 +6,19 @@ describe('mergeBookMetadata', () => {
   it('정책 순서대로 처음 값이 있는 출처를 고르고, isbn은 인자를 쓴다', () => {
     const result = mergeBookMetadata(ISBN, {
       kakao: { title: '카카오 제목', publisher: '카카오 출판사' },
-      nl: { title: 'NL 제목', publisher: 'NL 출판사', subTitle: 'NL 부제' },
+      nl: {
+        title: 'NL 제목',
+        publisher: 'NL 출판사',
+        translators: ['NL 역자'],
+      },
       yes24: { totalPage: 336 },
     });
 
     expect(result).toEqual({
       isbn: ISBN,
       title: '카카오 제목',
-      subTitle: 'NL 부제',
       authors: [],
-      translators: [],
+      translators: ['NL 역자'],
       publisher: '카카오 출판사',
       pubDate: null,
       thumbnail: null,
