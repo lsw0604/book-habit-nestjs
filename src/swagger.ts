@@ -19,7 +19,8 @@ export function buildSwaggerDocument(app: INestApplication) {
     .setTitle('Book Habit API')
     .setDescription(
       [
-        '독서 기록·스트릭·목표·서평·소셜을 다루는 Book Habit의 백엔드 API.',
+        '서재·독서 기록·인용·독서 노트·태그·독서 목표를 다루는 Book Habit의 백엔드 API.',
+        '개인 기록 중심이라 공개 서평·피드·좋아요·댓글은 없다.',
         '',
         '- 모든 응답은 `{ success, statusCode, message, data }` 봉투로 감싸진다',
         '  (`ResponseDtoInterceptor`). 실패도 같은 모양이고 `data`가 없다.',
