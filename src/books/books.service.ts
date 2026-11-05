@@ -1,4 +1,4 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, Logger } from '@nestjs/common';
 import { Prisma } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
 import { BookDetailResDto } from './dto/book-detail-res.dto';
@@ -7,6 +7,8 @@ import { BookLookupService } from './book-lookup.service';
 
 @Injectable()
 export class BooksService {
+  private readonly logger = new Logger(BooksService.name);
+
   constructor(
     private readonly prisma: PrismaService,
     private readonly bookLookupService: BookLookupService,
@@ -35,6 +37,12 @@ export class BooksService {
     if (local) return local;
 
     const dto = await this.lookup(isbn);
+    // Book은 갱신하지 않으므로 저자가 빈 책은 빈 채로 남는다(카카오가 저자를 비운 그림책 등).
+    // 얼마나 생기는지 셀 수 있게 실제로 만들 때만 남긴다(상세 조회는 저장하지 않으니 제외).
+    // 같은 새 책을 동시에 담으면 두 번 남을 수 있다 - 아주 드문 과다 집계라 받아들인다.
+    if (dto.authors.length === 0) {
+      this.logger.warn(`저자 없이 Book을 만든다(isbn=${dto.isbn})`);
+    }
 
     try {
       return await this.prisma.book.upsert({
