@@ -55,7 +55,7 @@ describe('KakaoLookupResDto.from', () => {
     expect(dto.coverImage).toBeNull();
   });
 
-  it('카카오가 주지 않는 부제·쪽수·출처 링크는 키를 두지 않는다', () => {
+  it('카카오가 주지 않는 쪽수·출처 링크는 키를 두지 않는다', () => {
     expect(Object.keys(KakaoLookupResDto.from(realDoc())).sort()).toEqual(
       [
         'title',
