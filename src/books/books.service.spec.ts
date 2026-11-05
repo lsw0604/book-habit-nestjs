@@ -1,5 +1,5 @@
 import { Test, TestingModule } from '@nestjs/testing';
-import { NotFoundException } from '@nestjs/common';
+import { Logger, NotFoundException } from '@nestjs/common';
 import { BooksService } from './books.service';
 import { PrismaService } from '../prisma/prisma.service';
 import { BookLookupService } from './book-lookup.service';
@@ -11,8 +11,10 @@ describe('BooksService', () => {
     book: { findUnique: jest.Mock; upsert: jest.Mock };
   };
   let bookLookupService: { getByIsbn: jest.Mock };
+  let warn: jest.SpyInstance;
 
   beforeEach(async () => {
+    warn = jest.spyOn(Logger.prototype, 'warn').mockImplementation();
     prismaService = {
       book: { findUnique: jest.fn(), upsert: jest.fn() },
     };
@@ -29,6 +31,11 @@ describe('BooksService', () => {
     service = module.get(BooksService);
   });
 
+  // jest 설정에 restoreMocks가 없어서, 프로토타입 spy가 다음 테스트로 새지 않게 직접 되돌린다.
+  afterEach(() => {
+    warn.mockRestore();
+  });
+
   it('로컬 DB에 이미 있으면 외부 API를 호출하지 않고 그대로 반환한다', async () => {
     const local = { id: 1, isbn: '9788996991342' };
     prismaService.book.findUnique.mockResolvedValue(local);
@@ -37,6 +44,7 @@ describe('BooksService', () => {
 
     expect(result).toBe(local);
     expect(bookLookupService.getByIsbn).not.toHaveBeenCalled();
+    expect(warn).not.toHaveBeenCalled();
   });
 
   it('로컬에 없으면 외부 API로 조회 후 upsert해서 반환한다', async () => {
@@ -44,6 +52,7 @@ describe('BooksService', () => {
     bookLookupService.getByIsbn.mockResolvedValue({
       isbn: '9788996991342',
       title: '미움받을 용기',
+      authors: ['기시미 이치로'],
     });
     prismaService.book.upsert.mockResolvedValue({
       id: 1,
@@ -54,9 +63,32 @@ describe('BooksService', () => {
 
     expect(prismaService.book.upsert).toHaveBeenCalledWith({
       where: { isbn: '9788996991342' },
-      create: { isbn: '9788996991342', title: '미움받을 용기' },
+      create: {
+        isbn: '9788996991342',
+        title: '미움받을 용기',
+        authors: ['기시미 이치로'],
+      },
       update: {},
     });
+    expect(warn).not.toHaveBeenCalled();
+  });
+
+  it('저자가 빈 책을 새로 만들 때는 경고 로그를 남긴다', async () => {
+    prismaService.book.findUnique.mockResolvedValue(null);
+    bookLookupService.getByIsbn.mockResolvedValue({
+      isbn: '9791169814423',
+      title: '너에게 들려주고 싶은 노래가 있어',
+      authors: [],
+    });
+    prismaService.book.upsert.mockResolvedValue({
+      id: 2,
+      isbn: '9791169814423',
+    });
+
+    await service.findOrCreate('9791169814423');
+
+    expect(warn).toHaveBeenCalledTimes(1);
+    expect(warn).toHaveBeenCalledWith(expect.stringContaining('9791169814423'));
   });
 
   it('외부 조회에서 못 찾으면 NotFoundException을 전파하고 저장하지 않는다', async () => {
@@ -76,6 +108,7 @@ describe('BooksService', () => {
     bookLookupService.getByIsbn.mockResolvedValue({
       isbn: '9788996991342',
       title: '미움받을 용기',
+      authors: ['기시미 이치로'],
     });
     prismaService.book.upsert.mockRejectedValue(createPrismaError('P2002'));
 
@@ -89,6 +122,7 @@ describe('BooksService', () => {
     bookLookupService.getByIsbn.mockResolvedValue({
       isbn: '9788996991342',
       title: '미움받을 용기',
+      authors: ['기시미 이치로'],
     });
     const otherError = new Error('boom');
     prismaService.book.upsert.mockRejectedValue(otherError);
@@ -157,6 +191,20 @@ describe('BooksService', () => {
       });
       // GET은 부작용이 없어야 한다 - Book은 서재 등록(findOrCreate) 때만 저장한다.
       expect(prismaService.book.upsert).not.toHaveBeenCalled();
+    });
+
+    it('저자가 빈 책을 조회만 할 때는 경고 로그를 남기지 않는다(저장하지 않으므로)', async () => {
+      prismaService.book.findUnique.mockResolvedValue(null);
+      bookLookupService.getByIsbn.mockResolvedValue({
+        isbn: '9791169814423',
+        title: '너에게 들려주고 싶은 노래가 있어',
+        authors: [],
+        translators: [],
+      });
+
+      await service.findDetailByIsbn('9791169814423');
+
+      expect(warn).not.toHaveBeenCalled();
     });
 
     it('DB에도 없고 외부에서도 못 찾으면 NotFoundException을 던진다', async () => {

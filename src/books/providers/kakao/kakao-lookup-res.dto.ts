@@ -6,7 +6,7 @@ import { KakaoDocument } from './kakao.types';
 const DAUM_CDN_HOST = 't1.daumcdn.net';
 
 /**
- * 카카오 문서 → Book 필드 patch. 카카오가 주지 않는 부제·쪽수·출처 링크는 키를 두지 않는다
+ * 카카오 문서 → Book 필드 patch. 카카오가 주지 않는 쪽수·출처 링크는 키를 두지 않는다
  * (카카오의 url은 다음 책 검색 페이지라 Book.url에 쓰지 않는다). 출처 규칙은 BOOK_MERGE_POLICY.
  */
 export class KakaoLookupResDto {

@@ -9,12 +9,12 @@ import {
   type BookMetadataProvider,
   type BookSource,
   KakaoBookSearchService,
-  NlBookSearchService,
   Yes24BookSearchService,
 } from './providers';
 
 /**
- * ISBN 한 권의 책 정보를 카카오·국립중앙도서관·YES24에서 모아 Book 모양으로 만든다.
+ * ISBN 한 권의 책 정보를 카카오(서지·표지)와 YES24(쪽수·출처 링크)에서 모아 Book 모양으로
+ * 만든다.
  *
  * 어떤 필드를 어느 출처에서 가져오는지, 어느 출처가 행을 만들 수 있는지는
  * book-merge-policy.ts(BOOK_MERGE_POLICY, BOOK_BASE_SOURCES)가 정한다. 이 서비스는
@@ -30,14 +30,9 @@ export class BookLookupService {
 
   constructor(
     kakaoBookSearchService: KakaoBookSearchService,
-    nlBookSearchService: NlBookSearchService,
     yes24BookSearchService: Yes24BookSearchService,
   ) {
-    this.providers = [
-      kakaoBookSearchService,
-      nlBookSearchService,
-      yes24BookSearchService,
-    ];
+    this.providers = [kakaoBookSearchService, yes24BookSearchService];
   }
 
   public async getByIsbn(isbn: string): Promise<BookLookupResDto> {
@@ -64,10 +59,10 @@ export class BookLookupService {
    * BOOK_BASE_SOURCES 중 하나는 찾아야 Book을 만들 수 있다.
    *
    * 첫 번째 출처(카카오)의 장애(404 외 실패)는 다음 출처로 대신하지 않고 그대로 던진다.
-   * Book은 한 번 저장되면 갱신되지 않아서(findOrCreate의 update: {}), 여기서 NL만으로
-   * 저장하면 표지 없는 책이 영구히 남는다. 잠시 뒤 재시도하는 편이 낫다.
-   * 카카오에 정말 없는 책(전자책 등)만 다음 출처로 만들고, 그것도 없으면 404다.
-   * YES24에만 있는 책도 404다(YES24는 기본 출처가 아니다).
+   * Book은 한 번 저장되면 갱신되지 않아서(findOrCreate의 update: {}), 장애 중에 다른
+   * 출처로 저장하면 부족한 값이 영구히 남는다. 잠시 뒤 재시도하는 편이 낫다.
+   * 첫 출처에 정말 없는 책만 다음 출처로 만들고(지금은 다음 출처가 없다), 그것도 없으면
+   * 404다. YES24에만 있는 책도 404다(YES24는 기본 출처가 아니다).
    */
   private assertBaseFound(
     patches: BookMetadataPatches,
